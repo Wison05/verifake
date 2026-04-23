@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import {
     HomeIcon,
     MagnifyingGlassIcon,
@@ -8,7 +9,8 @@ import {
 } from 'react-native-heroicons/outline';
 import { styles } from './BottomNavigation.styles';
 
-export const BottomNavigation = ({ navigation, activeRoute }: any) => {
+export const BottomNavigation = ({ activeRoute }: any) => {
+    const navigation = useNavigation<any>();
     const tabs = [
         { name: 'Home', label: '홈', Icon: HomeIcon },
         { name: 'DetectionInput', label: '탐지', Icon: MagnifyingGlassIcon },
@@ -26,7 +28,7 @@ export const BottomNavigation = ({ navigation, activeRoute }: any) => {
                     <TouchableOpacity
                         key={tab.name}
                         style={styles.tabItem}
-                        onPress={() => navigation.navigate(tab.name)}
+                        onPress={() => { navigation.navigate(tab.name) }}
                     >
                         <CurrentIcon
                             size={24}
