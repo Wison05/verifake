@@ -1,0 +1,25 @@
+{
+  "schema_version": "video-stage1-v1",
+  "pipeline_stage": 1,
+  "score_range": [0.0, 1.0],
+  "storage_root": "storage/jobs",
+  "preprocessing_output": "storage/jobs/{job_id}/metadata/preprocessing.json",
+  "detection_output": "storage/jobs/{job_id}/output/detection.json",
+  "final_output": "storage/jobs/{job_id}/output/result.json",
+  "detector": {
+    "framework": "DeepfakeBench",
+    "model_name": "EfficientNet-B4",
+    "score_field": "raw_fake_score",
+    "batch_size": 16
+  },
+  "segment_merge": {
+    "score_threshold": 0.6,
+    "max_gap_sec": 1.0,
+    "min_segment_duration_sec": 0.5,
+    "top_k": 5
+  },
+  "video_score": {
+    "aggregation_method": "topk_mean",
+    "topk_frame_count": 10
+  }
+}
