@@ -1,5 +1,11 @@
 import subprocess
 from pathlib import Path
+from typing import Any
+
+import static_ffmpeg
+
+
+static_ffmpeg.add_paths()
 
 # 결과 저장 폴더
 VIDEO_DIR = Path("storage/video")
@@ -34,3 +40,9 @@ def separate_streams(input_file: Path, job_id: str):
     ], check=True)
 
     return str(video_out), str(audio_out)
+
+
+def run_video_stage1_preprocess_job(input_file: Path, job_id: str | None = None) -> dict[str, Any]:
+    from services.ai.pipelines.video_stage1.preprocess import run_video_stage1_preprocess
+
+    return run_video_stage1_preprocess(input_path=str(input_file), job_id=job_id)
