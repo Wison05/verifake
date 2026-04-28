@@ -1,19 +1,19 @@
 import subprocess
 from pathlib import Path
 
-# 결과 저장 폴더
 VIDEO_DIR = Path("storage/video")
 AUDIO_DIR = Path("storage/audio")
+TMP_DIR = Path("storage/tmp")
 
 VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def separate_streams(input_file: Path, job_id: str):
     video_out = VIDEO_DIR / f"{job_id}_video.mp4"
     audio_out = AUDIO_DIR / f"{job_id}_audio.wav"
 
-    # 🎥 영상만 추출
     subprocess.run([
         "ffmpeg", "-y",
         "-i", str(input_file),
@@ -22,7 +22,6 @@ def separate_streams(input_file: Path, job_id: str):
         str(video_out)
     ], check=True)
 
-    # 🔊 음성만 추출 (wav)
     subprocess.run([
         "ffmpeg", "-y",
         "-i", str(input_file),
@@ -34,3 +33,12 @@ def separate_streams(input_file: Path, job_id: str):
     ], check=True)
 
     return str(video_out), str(audio_out)
+
+
+def save_and_split(task_id: str, filename: str, content: bytes):
+    dest_dir = TMP_DIR / task_id
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = dest_dir / filename
+    dest_path.write_bytes(content)
+    video_path, audio_path = separate_streams(dest_path, task_id)
+    return str(dest_dir), video_path, audio_path
