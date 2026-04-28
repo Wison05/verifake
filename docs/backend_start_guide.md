@@ -10,7 +10,7 @@ source .venv/bin/activate
 ### 2. 패키지 다운
 
 ```bash
-pip install -r services/backend/requirments.txt
+pip install -r services/backend/requirements.txt
 ```
 
 ### 3. 서버 실행 명령어
