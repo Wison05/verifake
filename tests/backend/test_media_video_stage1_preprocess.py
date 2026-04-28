@@ -1,5 +1,3 @@
-# pyright: reportMissingImports=false
-
 from __future__ import annotations
 
 import importlib
@@ -15,18 +13,18 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
-video = importlib.import_module("services.backend.routers.video")
+media = importlib.import_module("services.backend.routers.media")
 exceptions = importlib.import_module("services.ai.pipelines.video_stage1.exceptions")
 
 
 app_under_test = FastAPI()
-app_under_test.include_router(video.router, prefix="/api/v1")
+app_under_test.include_router(media.router, prefix="/media")
 client = TestClient(app_under_test)
 
 
 def test_video_stage1_preprocess_returns_400_for_missing_file() -> None:
     response = client.post(
-        "/api/v1/video-stage1/preprocess",
+        "/media/video-stage1/preprocess",
         json={"file_path": "missing-file.mp4"},
     )
 
@@ -51,10 +49,10 @@ def test_video_stage1_preprocess_returns_summary_payload(
             "status": "success",
         }
 
-    monkeypatch.setattr(video, "run_video_stage1_preprocess_job", fake_run_video_stage1_preprocess_job)
+    monkeypatch.setattr(media, "run_video_stage1_preprocess_job", fake_run_video_stage1_preprocess_job)
 
     response = client.post(
-        "/api/v1/video-stage1/preprocess",
+        "/media/video-stage1/preprocess",
         json={"file_path": str(input_path), "job_id": "job_test_003"},
     )
 
@@ -79,10 +77,10 @@ def test_video_stage1_preprocess_returns_500_for_missing_ai_runtime(
     ) -> dict[str, Any]:
         raise exceptions.Stage1UnavailableError("missing ai runtime")
 
-    monkeypatch.setattr(video, "run_video_stage1_preprocess_job", fake_run_video_stage1_preprocess_job)
+    monkeypatch.setattr(media, "run_video_stage1_preprocess_job", fake_run_video_stage1_preprocess_job)
 
     response = client.post(
-        "/api/v1/video-stage1/preprocess",
+        "/media/video-stage1/preprocess",
         json={"file_path": str(input_path), "job_id": "job_test_004"},
     )
 
