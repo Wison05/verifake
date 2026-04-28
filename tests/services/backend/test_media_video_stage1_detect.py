@@ -7,13 +7,13 @@ from pathlib import Path
 import pytest
 from fastapi import HTTPException
 
-from services.backend.routers import media
+from services.backend.routers import video
 
 
 def test_video_stage1_detect_rejects_missing_preprocessing_json() -> None:
     with pytest.raises(HTTPException) as exc_info:
-        media.detect_video_stage1(
-            media.VideoStage1DetectRequest(
+        video.detect_video_stage1(
+            video.VideoStage1DetectRequest(
                 preprocessing_json="/tmp/does-not-exist/preprocessing.json"
             )
         )
@@ -35,13 +35,13 @@ def test_video_stage1_detect_returns_result_paths(
         return {"job_id": "job_001"}
 
     monkeypatch.setattr(
-        media,
+        video,
         "run_video_stage1_detection",
         fake_run_video_stage1_detection,
     )
 
-    response = media.detect_video_stage1(
-        media.VideoStage1DetectRequest(
+    response = video.detect_video_stage1(
+        video.VideoStage1DetectRequest(
             preprocessing_json=str(preprocessing_json)
         )
     )
