@@ -2,8 +2,7 @@ import static_ffmpeg
 static_ffmpeg.add_paths()
 
 from fastapi import FastAPI
-from services.backend.routers import media
-from services.backend import download_service
+from services.backend.routers import video
 
 app = FastAPI(
     title="VeriFake API",
@@ -11,5 +10,4 @@ app = FastAPI(
     version="1.0.0"
 )
 
-app.include_router(media.router, prefix="/media")
-app.include_router(download_service.router, prefix="/api/v1")
+app.include_router(video.router, prefix="/api/v1")
