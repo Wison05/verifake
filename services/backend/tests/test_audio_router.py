@@ -77,6 +77,28 @@ class AudioRouterTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(context.exception.status_code, 404)
 
+    async def test_submit_uses_input_filename_stem_as_task_id(self) -> None:
+        from services.backend.routers.audio import AudioAnalyzeRequest, create_audio_job_endpoint
+        from services.backend.tasks import audio_jobs_db
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = Path(temp_dir) / "6a26db6c-0951-44c7-8208-e2f3ebf4cc8e_audio.wav"
+            input_path.write_text("wav", encoding="utf-8")
+
+            with patch(
+                "services.backend.routers.audio.validate_audio_python",
+                return_value=input_path,
+            ):
+                response = await create_audio_job_endpoint(
+                    background_tasks=BackgroundTasks(),
+                    req=AudioAnalyzeRequest(file_path=str(input_path)),
+                )
+
+        expected_task_id = "6a26db6c-0951-44c7-8208-e2f3ebf4cc8e_audio"
+        self.assertEqual(response["task_id"], expected_task_id)
+        self.assertIn(expected_task_id, audio_jobs_db)
+        self.assertEqual(audio_jobs_db[expected_task_id]["artifacts_dir"], f"storage/jobs/{expected_task_id}/audio")
+
     def test_post_jobs_route_returns_202(self) -> None:
         fake_static_ffmpeg = types.SimpleNamespace(add_paths=lambda: None)
 
