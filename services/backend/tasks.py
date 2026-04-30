@@ -6,6 +6,7 @@ from typing import Any
 
 upload_tasks_db: dict[str, dict[str, Any]] = {}
 audio_jobs_db: dict[str, dict[str, Any]] = {}
+video_detect_jobs_db: dict[str, dict[str, Any]] = {}
 
 
 def _timestamp() -> str:
@@ -56,5 +57,37 @@ def get_audio_job(task_id: str) -> dict[str, Any] | None:
 
 def update_audio_job(task_id: str, **fields: Any) -> dict[str, Any]:
     job = audio_jobs_db[task_id]
+    job.update(fields)
+    return job
+
+
+def create_video_detect_job(task_id: str, preprocessing_json: str, artifacts_dir: str) -> dict[str, Any]:
+    job = {
+        "task_id": task_id,
+        "status": "PENDING",
+        "stage": "queued",
+        "preprocessing_json": preprocessing_json,
+        "artifacts_dir": artifacts_dir,
+        "detection_path": None,
+        "result_path": None,
+        "result": None,
+        "error": None,
+        "stdout": "",
+        "stderr": "",
+        "returncode": None,
+        "created_at": _timestamp(),
+        "started_at": None,
+        "finished_at": None,
+    }
+    video_detect_jobs_db[task_id] = job
+    return job
+
+
+def get_video_detect_job(task_id: str) -> dict[str, Any] | None:
+    return video_detect_jobs_db.get(task_id)
+
+
+def update_video_detect_job(task_id: str, **fields: Any) -> dict[str, Any]:
+    job = video_detect_jobs_db[task_id]
     job.update(fields)
     return job

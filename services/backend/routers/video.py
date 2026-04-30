@@ -1,10 +1,12 @@
 # pyright: reportMissingImports=false, reportMissingModuleSource=false, reportUninitializedInstanceVariable=false
 
+import json
 import subprocess
 import re
+from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from services.ai.common.job_paths import build_job_paths
@@ -12,6 +14,8 @@ from services.ai.pipelines.video_stage1.config import get_stage1_storage_root
 from services.ai.pipelines.video_stage1.detect import run_video_stage1_detection
 from services.ai.pipelines.video_stage1.exceptions import Stage1UnavailableError
 from services.backend.services.processor import run_video_stage1_preprocess_job
+from services.backend.services.video_analyzer import run_video_detect_job, validate_video_ai_python
+from services.backend.tasks import create_video_detect_job, get_video_detect_job
 
 router = APIRouter()
 
@@ -147,3 +151,73 @@ def detect_video_stage1(req: VideoStage1DetectRequest):
         "detection_json": job_paths["detection_json_path"].as_posix(),
         "result_json": job_paths["result_json_path"].as_posix(),
     }
+
+
+@router.post("/video-stage1/detect/jobs", summary="Stage1 B 탐지 작업 생성", tags=["Video"], status_code=202)
+def create_video_detect_job_endpoint(background_tasks: BackgroundTasks, req: VideoStage1DetectRequest):
+    preprocessing_json_path = Path(req.preprocessing_json)
+    if not preprocessing_json_path.exists():
+        raise HTTPException(
+            status_code=400,
+            detail="preprocessing.json 파일이 존재하지 않습니다.",
+        )
+
+    preprocessing_json_path = _validate_preprocessing_json_path(req.preprocessing_json)
+
+    try:
+        validate_video_ai_python()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    task_id = preprocessing_json_path.parents[1].name
+    artifacts_dir = Path("storage/jobs") / task_id / "output"
+    job = create_video_detect_job(task_id, str(preprocessing_json_path.resolve()), str(artifacts_dir))
+
+    background_tasks.add_task(run_video_detect_job, task_id, preprocessing_json_path.resolve())
+
+    return {
+        "task_id": task_id,
+        "status": job["status"],
+        "preprocessing_json": job["preprocessing_json"],
+        "detection_path": job["detection_path"],
+        "result_path": job["result_path"],
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+@router.get("/video-stage1/detect/jobs/{task_id}", summary="Stage1 B 탐지 작업 상태 조회", tags=["Video"])
+def get_video_detect_job_status(task_id: str):
+    job = get_video_detect_job(task_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="해당 task_id를 찾을 수 없습니다.")
+
+    return {
+        "task_id": job["task_id"],
+        "status": job["status"],
+        "stage": job["stage"],
+        "preprocessing_json": job["preprocessing_json"],
+        "detection_path": job["detection_path"],
+        "result_path": job["result_path"],
+        "error": job["error"],
+        "created_at": job["created_at"],
+        "started_at": job["started_at"],
+        "finished_at": job["finished_at"],
+    }
+
+
+@router.get("/video-stage1/detect/jobs/{task_id}/result", summary="Stage1 B 탐지 작업 결과 조회", tags=["Video"])
+def get_video_detect_result(task_id: str):
+    job = get_video_detect_job(task_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="해당 task_id를 찾을 수 없습니다.")
+    if job["status"] != "SUCCEEDED":
+        raise HTTPException(status_code=409, detail=f"결과가 아직 준비되지 않았습니다. 현재 상태: {job['status']}")
+    result_path = job.get("result_path")
+    if result_path:
+        resolved_result_path = Path(result_path)
+        if resolved_result_path.exists():
+            try:
+                return json.loads(resolved_result_path.read_text(encoding="utf-8"))
+            except Exception as exc:
+                raise HTTPException(status_code=500, detail=f"결과 파일을 읽을 수 없습니다: {resolved_result_path}") from exc
+    return job["result"]
