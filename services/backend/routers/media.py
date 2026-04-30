@@ -27,7 +27,8 @@ class VideoStage1PreprocessRequest(BaseModel):
 
 
 class VideoStage1ExplainRequest(BaseModel):
-    result_json: str
+    video_result_json: str
+    audio_result_json: str
 
 
 # 0.0 ~ 1.0 범위 점수를 프론트 표시용 퍼센트로 변환
@@ -171,18 +172,30 @@ def preprocess_video_stage1(req: VideoStage1PreprocessRequest):
 
 @router.post("/video-stage1/explain")
 def explain_video_stage1(req: VideoStage1ExplainRequest):
-    result_json_path = Path(req.result_json)
+    video_result_json_path = Path(req.video_result_json)
+    audio_result_json_path = Path(req.audio_result_json)
 
-    # 설명 생성 대상 result.json 파일 존재 여부 확인
-    if not result_json_path.exists() or not result_json_path.is_file():
+    # 설명 생성 대상 video_result.json 파일 존재 여부 확인
+    if not video_result_json_path.exists() or not video_result_json_path.is_file():
         raise HTTPException(
             status_code=400,
-            detail="result.json 파일이 존재하지 않습니다.",
+            detail="video_result.json 파일이 존재하지 않습니다.",
+        )
+
+    # 설명 생성 대상 audio_result.json 파일 존재 여부 확인
+    if not audio_result_json_path.exists() or not audio_result_json_path.is_file():
+        raise HTTPException(
+            status_code=400,
+            detail="audio_result.json 파일이 존재하지 않습니다.",
         )
 
     try:
-        # 1) result.json에 LLM 설명을 저장하고
-        result = run_video_stage1_result_explainer_job(result_json_path)
+        # 1) video/audio 결과를 함께 프롬프트에 넣어 LLM 설명을 생성하고
+        # 2) 생성 결과는 video_result.json에 저장
+        result = run_video_stage1_result_explainer_job(
+            video_result_json_path,
+            audio_result_json_path,
+        )
         # 2) 프론트 화면에서 바로 쓰기 좋은 구조로 한 번 더 변환
         frontend_result = _build_frontend_result(result)
     except (ValueError, JSONDecodeError) as exc:
@@ -196,7 +209,8 @@ def explain_video_stage1(req: VideoStage1ExplainRequest):
         "job_id": result.get("job_id"),
         "source_status": result.get("status"),
         "explain_status": "success",
-        "result_json": result_json_path.as_posix(),
+        "video_result_json": video_result_json_path.as_posix(),
+        "audio_result_json": audio_result_json_path.as_posix(),
         "llm_explanations": result.get("llm_explanations"),
         "result": frontend_result,
     }

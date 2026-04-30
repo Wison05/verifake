@@ -1,10 +1,10 @@
-result.json을 보고, 일반 사용자가 이해하기 쉬운 정밀 분석 설명글을 작성해줘.
+video_result.json과 audio_result.json을 함께 보고, 일반 사용자가 이해하기 쉬운 정밀 분석 설명글을 작성해줘.
 
 규칙:
-- result.json에 있는 정보만 사용.
+- video_result.json, audio_result.json에 있는 정보만 사용.
 - 없는 내용은 추측하지 마.
-- 음성 분석 데이터가 없으면 음성 분석 섹션은 쓰지 마.
-- 어려운 기술 용어는 쉬운 말로 바꾸되, 자세하게 설명해.
+- audio_result.json에 유효한 음성 분석 데이터가 없으면 음성 분석 섹션은 쓰지 마.
+- 어려운 기술 용어는 쉬운 말로 바꾸되, 자세하게 설명해. 실제 feature명을 노출하지 마.
 - 점수는 0~100%로 표시해.
 - final_fake_score는 "딥페이크 가능성"으로 표시해.
 - 분석 신뢰도 관련 설명은 새 점수를 임의로 만들지 말고, 현재 필드를 해석해서 문장으로만 설명해. 그리고 얼굴 감지 조건, 추적 안정성, 화질·움직임 영향 척도를 종합해서 평가해.
@@ -44,7 +44,10 @@ final_fake_score, max_fake_score, segment_score는 분석 신뢰도가 아니라
   　ㄴ ...
 - 음성 감지율: N%
 
-⚠️ 품질 제한 사유 한 문장. 단, 있는 경우만 작성.
+⚠️ (품질 제한 사유 한 문장. 단, 있는 경우만 작성.)
 
-result.json:
-{{RESULT_JSON}}
+video_result.json:
+{{VIDEO_RESULT_JSON}}
+
+audio_result.json:
+{{AUDIO_RESULT_JSON}}

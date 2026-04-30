@@ -25,24 +25,49 @@ client = TestClient(app_under_test)
 def test_video_stage1_explain_returns_400_for_missing_file() -> None:
     response = client.post(
         "/media/video-stage1/explain",
-        json={"result_json": "missing-result.json"},
+        json={
+            "video_result_json": "missing-video-result.json",
+            "audio_result_json": "missing-audio-result.json",
+        },
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "result.json 파일이 존재하지 않습니다."
+    assert response.json()["detail"] == "video_result.json 파일이 존재하지 않습니다."
+
+
+def test_video_stage1_explain_returns_400_for_missing_audio_file(
+    tmp_path: Path,
+) -> None:
+    video_result_path = tmp_path / "video_result.json"
+    video_result_path.write_text("{}", encoding="utf-8")
+
+    response = client.post(
+        "/media/video-stage1/explain",
+        json={
+            "video_result_json": str(video_result_path),
+            "audio_result_json": str(tmp_path / "missing-audio-result.json"),
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "audio_result.json 파일이 존재하지 않습니다."
 
 
 def test_video_stage1_explain_returns_explanation_payload(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    result_path = tmp_path / "result.json"
-    result_path.write_text("{}", encoding="utf-8")
+    video_result_path = tmp_path / "video_result.json"
+    audio_result_path = tmp_path / "audio_result.json"
+    video_result_path.write_text("{}", encoding="utf-8")
+    audio_result_path.write_text("{}", encoding="utf-8")
 
     def fake_run_video_stage1_result_explainer_job(
-        result_json_path: Path,
+        video_json_path: Path,
+        audio_json_path: Path,
     ) -> dict[str, Any]:
-        assert result_json_path == result_path
+        assert video_json_path == video_result_path
+        assert audio_json_path == audio_result_path
         return {
             "job_id": "job_test_201",
             "status": "success",
@@ -82,7 +107,10 @@ def test_video_stage1_explain_returns_explanation_payload(
 
     response = client.post(
         "/media/video-stage1/explain",
-        json={"result_json": str(result_path)},
+        json={
+            "video_result_json": str(video_result_path),
+            "audio_result_json": str(audio_result_path),
+        },
     )
 
     assert response.status_code == 200
@@ -90,7 +118,8 @@ def test_video_stage1_explain_returns_explanation_payload(
         "job_id": "job_test_201",
         "source_status": "success",
         "explain_status": "success",
-        "result_json": result_path.as_posix(),
+        "video_result_json": video_result_path.as_posix(),
+        "audio_result_json": audio_result_path.as_posix(),
         "llm_explanations": {
             "summary_text": "요약",
             "detail_text": "상세",
@@ -130,11 +159,14 @@ def test_video_stage1_explain_returns_400_for_invalid_result_contract(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    result_path = tmp_path / "result.json"
-    result_path.write_text("{}", encoding="utf-8")
+    video_result_path = tmp_path / "video_result.json"
+    audio_result_path = tmp_path / "audio_result.json"
+    video_result_path.write_text("{}", encoding="utf-8")
+    audio_result_path.write_text("{}", encoding="utf-8")
 
     def fake_run_video_stage1_result_explainer_job(
-        result_json_path: Path,
+        video_json_path: Path,
+        audio_json_path: Path,
     ) -> dict[str, Any]:
         raise ValueError("result.json must include detection.video_score.")
 
@@ -146,7 +178,10 @@ def test_video_stage1_explain_returns_400_for_invalid_result_contract(
 
     response = client.post(
         "/media/video-stage1/explain",
-        json={"result_json": str(result_path)},
+        json={
+            "video_result_json": str(video_result_path),
+            "audio_result_json": str(audio_result_path),
+        },
     )
 
     assert response.status_code == 400
@@ -159,11 +194,14 @@ def test_video_stage1_explain_returns_400_for_invalid_score_value(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    result_path = tmp_path / "result.json"
-    result_path.write_text("{}", encoding="utf-8")
+    video_result_path = tmp_path / "video_result.json"
+    audio_result_path = tmp_path / "audio_result.json"
+    video_result_path.write_text("{}", encoding="utf-8")
+    audio_result_path.write_text("{}", encoding="utf-8")
 
     def fake_run_video_stage1_result_explainer_job(
-        result_json_path: Path,
+        video_json_path: Path,
+        audio_json_path: Path,
     ) -> dict[str, Any]:
         return {
             "job_id": "job_test_202",
@@ -190,7 +228,10 @@ def test_video_stage1_explain_returns_400_for_invalid_score_value(
 
     response = client.post(
         "/media/video-stage1/explain",
-        json={"result_json": str(result_path)},
+        json={
+            "video_result_json": str(video_result_path),
+            "audio_result_json": str(audio_result_path),
+        },
     )
 
     assert response.status_code == 400
@@ -203,11 +244,14 @@ def test_video_stage1_explain_returns_500_for_missing_ai_runtime(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    result_path = tmp_path / "result.json"
-    result_path.write_text("{}", encoding="utf-8")
+    video_result_path = tmp_path / "video_result.json"
+    audio_result_path = tmp_path / "audio_result.json"
+    video_result_path.write_text("{}", encoding="utf-8")
+    audio_result_path.write_text("{}", encoding="utf-8")
 
     def fake_run_video_stage1_result_explainer_job(
-        result_json_path: Path,
+        video_json_path: Path,
+        audio_json_path: Path,
     ) -> dict[str, Any]:
         raise exceptions.Stage1UnavailableError("missing gemini runtime")
 
@@ -219,7 +263,10 @@ def test_video_stage1_explain_returns_500_for_missing_ai_runtime(
 
     response = client.post(
         "/media/video-stage1/explain",
-        json={"result_json": str(result_path)},
+        json={
+            "video_result_json": str(video_result_path),
+            "audio_result_json": str(audio_result_path),
+        },
     )
 
     assert response.status_code == 500

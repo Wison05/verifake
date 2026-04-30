@@ -24,16 +24,25 @@ def _load_prompt_template(path: Path) -> str:
         raise Stage1ExplanationError(f"Prompt file not found: {path}")
 
     template = path.read_text(encoding="utf-8").strip()
-    if "{{RESULT_JSON}}" not in template:
+    if "{{VIDEO_RESULT_JSON}}" not in template or "{{AUDIO_RESULT_JSON}}" not in template:
         raise Stage1ExplanationError(
-            f"Prompt template must include {{RESULT_JSON}} placeholder: {path}"
+            f"Prompt template must include both {{VIDEO_RESULT_JSON}} and {{AUDIO_RESULT_JSON}} placeholders: {path}"
         )
     return template
 
 
-def _build_prompt(template: str, result_payload: dict[str, Any]) -> str:
-    result_json = json.dumps(result_payload, ensure_ascii=False, indent=2)
-    return template.replace("{{RESULT_JSON}}", result_json)
+def _build_prompt(
+    template: str,
+    video_result_payload: dict[str, Any],
+    audio_result_payload: dict[str, Any],
+) -> str:
+    video_result_json = json.dumps(video_result_payload, ensure_ascii=False, indent=2)
+    audio_result_json = json.dumps(audio_result_payload, ensure_ascii=False, indent=2)
+    return (
+        template
+        .replace("{{VIDEO_RESULT_JSON}}", video_result_json)
+        .replace("{{AUDIO_RESULT_JSON}}", audio_result_json)
+    )
 
 
 def _validate_result_payload(payload: dict[str, Any]) -> None:
@@ -57,6 +66,21 @@ def _validate_result_payload(payload: dict[str, Any]) -> None:
             raise ValueError(
                 f"result.json must include detection.video_score.{required_key}."
             )
+
+
+def _validate_audio_result_payload(payload: dict[str, Any]) -> None:
+    required_keys = (
+        "audio_fake_prob_like",
+        "audio_uncertainty",
+        "evidence_level",
+    )
+    missing_keys = [key for key in required_keys if key not in payload]
+    if missing_keys:
+        raise ValueError(
+            "audio result json must include "
+            + ", ".join(missing_keys)
+            + "."
+        )
 
 
 def _load_dotenv_file() -> None:
@@ -106,36 +130,59 @@ def _generate_text(client: Any, prompt: str) -> str:
     return text.strip()
 
 
-def run_video_stage1_result_explainer(result_json_path: str) -> dict[str, Any]:
-    result_path = Path(result_json_path)
-    if not result_path.exists():
-        raise FileNotFoundError(f"result.json file not found: {result_path}")
-    if not result_path.is_file():
-        raise ValueError(f"result.json path must point to a file: {result_path}")
+def run_video_stage1_result_explainer(
+    video_result_json_path: str,
+    audio_result_json_path: str,
+) -> dict[str, Any]:
+    video_result_path = Path(video_result_json_path)
+    if not video_result_path.exists():
+        raise FileNotFoundError(f"video_result.json file not found: {video_result_path}")
+    if not video_result_path.is_file():
+        raise ValueError(f"video_result.json path must point to a file: {video_result_path}")
 
-    payload_obj = read_json(result_path)
-    if not isinstance(payload_obj, dict):
-        raise ValueError("result.json must contain a JSON object.")
-    payload: dict[str, Any] = dict(payload_obj)
-    _validate_result_payload(payload)
+    audio_result_path = Path(audio_result_json_path)
+    if not audio_result_path.exists():
+        raise FileNotFoundError(f"audio_result.json file not found: {audio_result_path}")
+    if not audio_result_path.is_file():
+        raise ValueError(f"audio_result.json path must point to a file: {audio_result_path}")
 
-    prompt_source: dict[str, Any] = {
-        str(key): value for key, value in payload.items() if key != "llm_explanations"
+    video_payload_obj = read_json(video_result_path)
+    if not isinstance(video_payload_obj, dict):
+        raise ValueError("video result json must contain a JSON object.")
+    video_payload: dict[str, Any] = dict(video_payload_obj)
+    _validate_result_payload(video_payload)
+
+    audio_payload_obj = read_json(audio_result_path)
+    if not isinstance(audio_payload_obj, dict):
+        raise ValueError("audio result json must contain a JSON object.")
+    audio_payload: dict[str, Any] = dict(audio_payload_obj)
+    _validate_audio_result_payload(audio_payload)
+
+    video_prompt_source: dict[str, Any] = {
+        str(key): value for key, value in video_payload.items() if key != "llm_explanations"
     }
-    summary_prompt = _build_prompt(_load_prompt_template(SUMMARY_PROMPT_PATH), prompt_source)
-    detail_prompt = _build_prompt(_load_prompt_template(DETAIL_PROMPT_PATH), prompt_source)
+    summary_prompt = _build_prompt(
+        _load_prompt_template(SUMMARY_PROMPT_PATH),
+        video_prompt_source,
+        audio_payload,
+    )
+    detail_prompt = _build_prompt(
+        _load_prompt_template(DETAIL_PROMPT_PATH),
+        video_prompt_source,
+        audio_payload,
+    )
 
     api_key = _load_api_key()
     client = _create_genai_client(api_key)
     summary_text = _generate_text(client, summary_prompt)
     detail_text = _generate_text(client, detail_prompt)
 
-    payload["llm_explanations"] = {
+    video_payload["llm_explanations"] = {
         "model": GEMINI_MODEL,
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "summary_text": summary_text,
         "detail_text": detail_text,
     }
 
-    write_json(result_path, payload)
-    return payload
+    write_json(video_result_path, video_payload)
+    return video_payload
