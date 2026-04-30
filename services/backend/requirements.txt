@@ -5,3 +5,7 @@ instaloader
 static-ffmpeg
 python-multipart
 videohash
+sqlalchemy
+pymysql
+cryptography
+pillow

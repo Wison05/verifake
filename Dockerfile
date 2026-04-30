@@ -10,9 +10,6 @@ ENV TF_USE_LEGACY_KERAS=1
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
-    ffmpeg \
-    curl \
-    vim \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -23,10 +20,10 @@ WORKDIR /app
 # 호스트의 requirements 파일들을 임시 복사하여 설치합니다.
 COPY services/backend/requirements.txt /tmp/requirements.txt
 COPY services/backend/requirements-ai-stage1.txt /tmp/requirements-ai-stage1.txt
+COPY services/backend/requirements-dev.txt /tmp/requirements-dev.txt
 
-# --break-system-packages 옵션을 사용하여 시스템 파이썬에 직접 설치
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r /tmp/requirements.txt --break-system-packages && \
+# 6. pip 업데이트를 빼고 바로 패키지 설치 진행
+RUN pip install --no-cache-dir -r /tmp/requirements.txt --break-system-packages && \
     pip install --no-cache-dir -r /tmp/requirements-ai-stage1.txt --break-system-packages
 
 # 6. 소스 코드 복사 (Docker Compose에서 볼륨 마운트를 쓰더라도 빌드 시 복사해두는 것이 좋습니다)
