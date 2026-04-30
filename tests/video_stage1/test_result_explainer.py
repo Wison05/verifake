@@ -14,7 +14,8 @@ exceptions = importlib.import_module("services.ai.pipelines.video_stage1.excepti
 
 
 def test_result_explainer_updates_result_json(tmp_path: Path, monkeypatch) -> None:
-    result_path = tmp_path / "result.json"
+    video_result_path = tmp_path / "video_result.json"
+    audio_result_path = tmp_path / "audio_result.json"
     result_payload = {
         "job_id": "job_test_101",
         "status": "success",
@@ -28,19 +29,30 @@ def test_result_explainer_updates_result_json(tmp_path: Path, monkeypatch) -> No
             ],
         },
     }
-    result_path.write_text(
+    audio_result_payload = {
+        "request_id": "audio_req_101",
+        "audio_fake_prob_like": 0.86,
+        "audio_uncertainty": 0.12,
+        "evidence_level": "sufficient",
+    }
+
+    video_result_path.write_text(
         json.dumps(result_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    audio_result_path.write_text(
+        json.dumps(audio_result_payload, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
     prompts_dir = tmp_path / "prompts"
     prompts_dir.mkdir()
     (prompts_dir / "result_summary_prompt.txt").write_text(
-        "summary\n{{RESULT_JSON}}\n",
+        "summary\n{{VIDEO_RESULT_JSON}}\n---\n{{AUDIO_RESULT_JSON}}\n",
         encoding="utf-8",
     )
     (prompts_dir / "result_detail_prompt.txt").write_text(
-        "detail\n{{RESULT_JSON}}\n",
+        "detail\n{{VIDEO_RESULT_JSON}}\n---\n{{AUDIO_RESULT_JSON}}\n",
         encoding="utf-8",
     )
 
@@ -81,22 +93,27 @@ def test_result_explainer_updates_result_json(tmp_path: Path, monkeypatch) -> No
         lambda api_key: FakeClient(),
     )
 
-    updated = result_explainer.run_video_stage1_result_explainer(str(result_path))
+    updated = result_explainer.run_video_stage1_result_explainer(
+        str(video_result_path),
+        str(audio_result_path),
+    )
 
     assert updated["llm_explanations"]["model"] == "gemini-2.5-flash-lite"
     assert updated["llm_explanations"]["summary_text"] == "요약 응답"
     assert updated["llm_explanations"]["detail_text"] == "상세 응답"
     assert len(calls) == 2
     assert '"final_fake_score": 0.72' in calls[0]
+    assert '"audio_fake_prob_like": 0.86' in calls[0]
 
-    persisted = json.loads(result_path.read_text(encoding="utf-8"))
+    persisted = json.loads(video_result_path.read_text(encoding="utf-8"))
     assert persisted["llm_explanations"]["summary_text"] == "요약 응답"
     assert persisted["llm_explanations"]["detail_text"] == "상세 응답"
 
 
 def test_result_explainer_requires_api_key(tmp_path: Path, monkeypatch) -> None:
-    result_path = tmp_path / "result.json"
-    result_path.write_text(
+    video_result_path = tmp_path / "video_result.json"
+    audio_result_path = tmp_path / "audio_result.json"
+    video_result_path.write_text(
         json.dumps(
             {
                 "job_id": "job_test_103",
@@ -111,15 +128,26 @@ def test_result_explainer_requires_api_key(tmp_path: Path, monkeypatch) -> None:
         ),
         encoding="utf-8",
     )
+    audio_result_path.write_text(
+        json.dumps(
+            {
+                "request_id": "audio_req_103",
+                "audio_fake_prob_like": 0.45,
+                "audio_uncertainty": 0.2,
+                "evidence_level": "sufficient",
+            }
+        ),
+        encoding="utf-8",
+    )
 
     prompts_dir = tmp_path / "prompts"
     prompts_dir.mkdir()
     (prompts_dir / "result_summary_prompt.txt").write_text(
-        "summary\n{{RESULT_JSON}}\n",
+        "summary\n{{VIDEO_RESULT_JSON}}\n{{AUDIO_RESULT_JSON}}\n",
         encoding="utf-8",
     )
     (prompts_dir / "result_detail_prompt.txt").write_text(
-        "detail\n{{RESULT_JSON}}\n",
+        "detail\n{{VIDEO_RESULT_JSON}}\n{{AUDIO_RESULT_JSON}}\n",
         encoding="utf-8",
     )
 
@@ -139,24 +167,39 @@ def test_result_explainer_requires_api_key(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
 
     with pytest.raises(exceptions.Stage1UnavailableError):
-        result_explainer.run_video_stage1_result_explainer(str(result_path))
+        result_explainer.run_video_stage1_result_explainer(
+            str(video_result_path),
+            str(audio_result_path),
+        )
 
 
 def test_result_explainer_rejects_invalid_result_shape(tmp_path: Path, monkeypatch) -> None:
-    result_path = tmp_path / "result.json"
-    result_path.write_text(
+    video_result_path = tmp_path / "video_result.json"
+    audio_result_path = tmp_path / "audio_result.json"
+    video_result_path.write_text(
         json.dumps({"job_id": "job_test_102", "status": "success"}),
+        encoding="utf-8",
+    )
+    audio_result_path.write_text(
+        json.dumps(
+            {
+                "request_id": "audio_req_102",
+                "audio_fake_prob_like": 0.45,
+                "audio_uncertainty": 0.2,
+                "evidence_level": "sufficient",
+            }
+        ),
         encoding="utf-8",
     )
 
     prompts_dir = tmp_path / "prompts"
     prompts_dir.mkdir()
     (prompts_dir / "result_summary_prompt.txt").write_text(
-        "summary\n{{RESULT_JSON}}\n",
+        "summary\n{{VIDEO_RESULT_JSON}}\n{{AUDIO_RESULT_JSON}}\n",
         encoding="utf-8",
     )
     (prompts_dir / "result_detail_prompt.txt").write_text(
-        "detail\n{{RESULT_JSON}}\n",
+        "detail\n{{VIDEO_RESULT_JSON}}\n{{AUDIO_RESULT_JSON}}\n",
         encoding="utf-8",
     )
 
@@ -174,11 +217,15 @@ def test_result_explainer_rejects_invalid_result_shape(tmp_path: Path, monkeypat
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
 
     with pytest.raises(ValueError):
-        result_explainer.run_video_stage1_result_explainer(str(result_path))
+        result_explainer.run_video_stage1_result_explainer(
+            str(video_result_path),
+            str(audio_result_path),
+        )
 
 
 def test_result_explainer_loads_api_key_from_dotenv(tmp_path: Path, monkeypatch) -> None:
-    result_path = tmp_path / "result.json"
+    video_result_path = tmp_path / "video_result.json"
+    audio_result_path = tmp_path / "audio_result.json"
     result_payload = {
         "job_id": "job_test_104",
         "status": "success",
@@ -190,19 +237,30 @@ def test_result_explainer_loads_api_key_from_dotenv(tmp_path: Path, monkeypatch)
             "top_segments": [],
         },
     }
-    result_path.write_text(
+    audio_result_payload = {
+        "request_id": "audio_req_104",
+        "audio_fake_prob_like": 0.32,
+        "audio_uncertainty": 0.61,
+        "evidence_level": "low_evidence",
+    }
+
+    video_result_path.write_text(
         json.dumps(result_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    audio_result_path.write_text(
+        json.dumps(audio_result_payload, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
     prompts_dir = tmp_path / "prompts"
     prompts_dir.mkdir()
     (prompts_dir / "result_summary_prompt.txt").write_text(
-        "summary\n{{RESULT_JSON}}\n",
+        "summary\n{{VIDEO_RESULT_JSON}}\n{{AUDIO_RESULT_JSON}}\n",
         encoding="utf-8",
     )
     (prompts_dir / "result_detail_prompt.txt").write_text(
-        "detail\n{{RESULT_JSON}}\n",
+        "detail\n{{VIDEO_RESULT_JSON}}\n{{AUDIO_RESULT_JSON}}\n",
         encoding="utf-8",
     )
     env_path = tmp_path / ".env"
@@ -242,8 +300,65 @@ def test_result_explainer_loads_api_key_from_dotenv(tmp_path: Path, monkeypatch)
         lambda api_key: seen_api_keys.append(api_key) or FakeClient(),
     )
 
-    updated = result_explainer.run_video_stage1_result_explainer(str(result_path))
+    updated = result_explainer.run_video_stage1_result_explainer(
+        str(video_result_path),
+        str(audio_result_path),
+    )
 
     assert seen_api_keys == ["dotenv-test-key"]
     assert updated["llm_explanations"]["summary_text"] == "응답"
     assert updated["llm_explanations"]["detail_text"] == "응답"
+
+
+def test_result_explainer_rejects_invalid_audio_result_shape(tmp_path: Path, monkeypatch) -> None:
+    video_result_path = tmp_path / "video_result.json"
+    audio_result_path = tmp_path / "audio_result.json"
+    video_result_path.write_text(
+        json.dumps(
+            {
+                "job_id": "job_test_105",
+                "status": "success",
+                "detection": {
+                    "video_score": {
+                        "final_fake_score": 0.41,
+                        "max_fake_score": 0.6,
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    audio_result_path.write_text(
+        json.dumps({"request_id": "audio_req_105"}),
+        encoding="utf-8",
+    )
+
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    (prompts_dir / "result_summary_prompt.txt").write_text(
+        "summary\n{{VIDEO_RESULT_JSON}}\n{{AUDIO_RESULT_JSON}}\n",
+        encoding="utf-8",
+    )
+    (prompts_dir / "result_detail_prompt.txt").write_text(
+        "detail\n{{VIDEO_RESULT_JSON}}\n{{AUDIO_RESULT_JSON}}\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(result_explainer, "PROMPTS_DIR", prompts_dir)
+    monkeypatch.setattr(
+        result_explainer,
+        "SUMMARY_PROMPT_PATH",
+        prompts_dir / "result_summary_prompt.txt",
+    )
+    monkeypatch.setattr(
+        result_explainer,
+        "DETAIL_PROMPT_PATH",
+        prompts_dir / "result_detail_prompt.txt",
+    )
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+
+    with pytest.raises(ValueError):
+        result_explainer.run_video_stage1_result_explainer(
+            str(video_result_path),
+            str(audio_result_path),
+        )
