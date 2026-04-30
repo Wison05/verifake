@@ -1,10 +1,11 @@
 import asyncio
-import importlib
 import re
+import instaloader
 from pathlib import Path
 
 from services.backend.services.processor import separate_streams, TMP_DIR
 
+from videohash import VideoHash
 
 def _extract_shortcode(url: str) -> str:
     match = re.search(r'/(?:p|reel)/([A-Za-z0-9_-]+)', url)
@@ -14,10 +15,8 @@ def _extract_shortcode(url: str) -> str:
 
 
 def _download_instagram(url: str, dest_dir: Path):
-    instaloader_module = importlib.import_module("instaloader")
-
     shortcode = _extract_shortcode(url)
-    loader = instaloader_module.Instaloader(
+    loader = instaloader.Instaloader(
         dirname_pattern=str(dest_dir),
         download_pictures=False,
         download_video_thumbnails=False,
@@ -26,11 +25,11 @@ def _download_instagram(url: str, dest_dir: Path):
         save_metadata=False,
         post_metadata_txt_pattern="",
     )
-    post = instaloader_module.Post.from_shortcode(loader.context, shortcode)
+    post = instaloader.Post.from_shortcode(loader.context, shortcode)
     loader.download_post(post, target=shortcode)
 
 
-async def run_download(task_id: str, url: str, tasks_db: dict[str, dict[str, object]]) -> None:
+async def run_download(task_id: str, url: str, tasks_db: dict):
     dest_dir = TMP_DIR / task_id
     dest_dir.mkdir(parents=True, exist_ok=True)
     tasks_db[task_id]["status"] = "PROCESSING"
@@ -46,6 +45,7 @@ async def run_download(task_id: str, url: str, tasks_db: dict[str, dict[str, obj
         tasks_db[task_id]["download_dir"] = str(dest_dir)
         tasks_db[task_id]["video_path"] = video_path
         tasks_db[task_id]["audio_path"] = audio_path
+        tasks_db[task_id]["pHash"] = VideoHash(path=video_path).hash_hex
     except Exception as e:
         tasks_db[task_id]["status"] = "FAILED"
         tasks_db[task_id]["error"] = str(e)
