@@ -61,6 +61,8 @@ This setup is recommended if you plan to run custom experiments with the code. T
 conda create --name antideepfake python==3.9.0
 conda activate antideepfake
 conda install pip==24.0
+# Keep pip at 24.0 before installing requirements.
+# Newer pip versions can reject omegaconf 2.0.x metadata pulled by fairseq.
 
 ### Install PyTorch ###
 pip install torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu118
@@ -79,7 +81,7 @@ cd ../
 pip install speechbrain==1.0.2
 
 ### Install other packages ###
-pip install tensorboard tensorboardX soundfile pandarallel scikit-learn numpy==1.21.2 pandas==1.4.3 scipy==1.7.2
+pip install -r requirements.txt
 
 ### Note ###
 # Please make sure that your AntiDeepfake directory 

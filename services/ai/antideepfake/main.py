@@ -19,9 +19,14 @@ import speechbrain as sb
 from speechbrain.utils.logger import get_logger
 from speechbrain.dataio.dataloader import LoopedLoader
 
-from dataio.dataio import dataio_prepare, dataio_prepare_test
-from utils import load_weights, set_random_seed, pickle_dump
-from evaluation import compute_metrics
+try:
+    from .dataio.dataio import dataio_prepare, dataio_prepare_test
+    from .utils import load_weights, set_random_seed, pickle_dump
+    from .evaluation import compute_metrics
+except ImportError:
+    from dataio.dataio import dataio_prepare, dataio_prepare_test
+    from utils import load_weights, set_random_seed, pickle_dump
+    from evaluation import compute_metrics
 
 __author__ = "Wanying Ge, Xin Wang"
 __email__ = "gewanying@nii.ac.jp, wangxin@nii.ac.jp"

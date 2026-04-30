@@ -9,7 +9,10 @@ import speechbrain as sb
 from speechbrain.dataio.batch import PaddedBatch
 from speechbrain.dataio.sampler import DynamicBatchSampler
 
-from dataio.rawboost import process_Rawboost_feature
+try:
+    from .rawboost import process_Rawboost_feature
+except ImportError:
+    from dataio.rawboost import process_Rawboost_feature
 
 
 __author__ = "Wanying Ge, Xin Wang"

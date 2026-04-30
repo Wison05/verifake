@@ -1,10 +1,10 @@
 # pyright: reportMissingImports=false
 
 import static_ffmpeg
-static_ffmpeg.add_paths()
+_ = static_ffmpeg.add_paths()
 
 from fastapi import FastAPI
-from services.backend.routers import video, instagram
+from services.backend.routers import video, instagram, audio
 
 app = FastAPI(
     title="VeriFake API",
@@ -15,3 +15,4 @@ app = FastAPI(
 app.include_router(video.router, prefix="/api/v1")
 app.include_router(video.router, prefix="/media")
 app.include_router(instagram.router, prefix="/api/v1")
+app.include_router(audio.router, prefix="/api/v1/audio")
