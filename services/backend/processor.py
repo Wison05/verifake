@@ -46,3 +46,11 @@ def run_video_stage1_preprocess_job(input_file: Path, job_id: str | None = None)
     from services.ai.pipelines.video_stage1.preprocess import run_video_stage1_preprocess
 
     return run_video_stage1_preprocess(input_path=str(input_file), job_id=job_id)
+
+
+def run_video_stage1_result_explainer_job(result_json_path: Path) -> dict[str, Any]:
+    from services.ai.pipelines.video_stage1.result_explainer import (
+        run_video_stage1_result_explainer,
+    )
+
+    return run_video_stage1_result_explainer(result_json_path=str(result_json_path))
