@@ -30,7 +30,10 @@ def get_audio_python() -> Path:
     if not raw_path:
         raise RuntimeError("VERIFAKE_AI_PYTHON 환경변수가 설정되지 않았습니다.")
 
-    python_path = Path(raw_path).expanduser().resolve()
+    python_path = Path(raw_path).expanduser()
+    if not python_path.is_absolute():
+        python_path = Path.cwd() / python_path
+    python_path = python_path.absolute()
     if not python_path.exists():
         raise RuntimeError(f"VERIFAKE_AI_PYTHON 경로가 존재하지 않습니다: {python_path}")
     if not python_path.is_file():
