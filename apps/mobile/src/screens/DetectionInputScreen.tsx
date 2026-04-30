@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, SafeAreaView, TouchableOpacity, Image, TextInput, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
@@ -6,10 +6,16 @@ import { CloudArrowUpIcon, LinkIcon, VideoCameraIcon } from 'react-native-heroic
 import { styles } from './DetectionScreen.styles';
 import { BottomNavigation } from '../components/BottomNavigaton';
 
-export const DetectionInputScreen = ({ navigation }: any) => {
+export const DetectionInputScreen = ({ navigation, route }: any) => {
     const [videoUri, setVideoUri] = useState<string | null>(null);
     const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
     const [url, setUrl] = useState('');
+
+    useEffect(() => {
+        if (route.params?.sharedUrl) {
+            setUrl(route.params.sharedUrl);
+        }
+    }, [route.params?.sharedUrl]);
 
     const pickVideo = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();

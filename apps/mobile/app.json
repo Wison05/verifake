@@ -1,0 +1,54 @@
+{
+    "expo": {
+        "name": "VeriFake",
+        "slug": "verifake-mobile",
+        "version": "1.0.0",
+        "scheme": "verifake",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "dark",
+        "ios": {
+            "bundleIdentifier": "com.verifake.app",
+            "supportsTablet": true,
+            "infoPlist": {
+                "CFBundleShareTypes": [
+                    "public.url"
+                ]
+            }
+        },
+        "android": {
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/icon.png",
+                "backgroundColor": "#ffffff"
+            },
+            "package": "com.verifake.app",
+            "intentFilters": [
+                {
+                    "action": "SEND",
+                    "data": [
+                        {
+                            "mimeType": "text/plain"
+                        }
+                    ]
+                }
+            ]
+        },
+        "plugins": [
+            [
+                "expo-share-intent",
+                {
+                    "ios": {
+                        "activationRules": [
+                            "https://www.instagram.com/.*"
+                        ]
+                    },
+                    "android": {
+                        "intentFilters": [
+                            "text/plain"
+                        ]
+                    }
+                }
+            ]
+        ]
+    }
+}
