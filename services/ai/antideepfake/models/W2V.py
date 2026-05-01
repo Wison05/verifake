@@ -9,7 +9,11 @@ SSL architectures
 """
 import torch
 from fairseq.models.wav2vec import Wav2Vec2Model, Wav2Vec2Config
-from models.W2V_configs import global_input_dims, global_configs
+
+try:
+    from .W2V_configs import global_input_dims, global_configs
+except ImportError:
+    from models.W2V_configs import global_input_dims, global_configs
 
 __author__ = "Wanying Ge, Xin Wang"
 __email__ = "gewanying@nii.ac.jp, wangxin@nii.ac.jp"

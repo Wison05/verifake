@@ -4,7 +4,11 @@
 import os
 import sys
 import torch
-from models.aasist import AASIST
+
+try:
+    from .aasist import AASIST
+except ImportError:
+    from models.aasist import AASIST
 
 __author__ = "Wanying Ge, Xin Wang"
 __email__ = "gewanying@nii.ac.jp, wangxin@nii.ac.jp"

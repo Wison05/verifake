@@ -1,6 +1,6 @@
 import asyncio
+import importlib
 import re
-import instaloader
 from pathlib import Path
 
 from services.backend.services.processor import separate_streams, TMP_DIR
@@ -14,8 +14,10 @@ def _extract_shortcode(url: str) -> str:
 
 
 def _download_instagram(url: str, dest_dir: Path):
+    instaloader_module = importlib.import_module("instaloader")
+
     shortcode = _extract_shortcode(url)
-    loader = instaloader.Instaloader(
+    loader = instaloader_module.Instaloader(
         dirname_pattern=str(dest_dir),
         download_pictures=False,
         download_video_thumbnails=False,
@@ -24,11 +26,11 @@ def _download_instagram(url: str, dest_dir: Path):
         save_metadata=False,
         post_metadata_txt_pattern="",
     )
-    post = instaloader.Post.from_shortcode(loader.context, shortcode)
+    post = instaloader_module.Post.from_shortcode(loader.context, shortcode)
     loader.download_post(post, target=shortcode)
 
 
-async def run_download(task_id: str, url: str, tasks_db: dict):
+async def run_download(task_id: str, url: str, tasks_db: dict[str, dict[str, object]]) -> None:
     dest_dir = TMP_DIR / task_id
     dest_dir.mkdir(parents=True, exist_ok=True)
     tasks_db[task_id]["status"] = "PROCESSING"

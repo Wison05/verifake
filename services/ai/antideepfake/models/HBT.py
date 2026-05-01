@@ -11,7 +11,16 @@ import torch
 from fairseq.models.hubert import HubertModel, HubertConfig
 from fairseq.tasks.hubert_pretraining import HubertPretrainingConfig
 from fairseq.data import Dictionary
-from models.HBT_configs import global_input_dims, global_dicts, global_tasks, global_configs
+
+try:
+    from .HBT_configs import (
+        global_configs,
+        global_dicts,
+        global_input_dims,
+        global_tasks,
+    )
+except ImportError:
+    from models.HBT_configs import global_input_dims, global_dicts, global_tasks, global_configs
 
 __author__ = "Wanying Ge, Xin Wang"
 __email__ = "gewanying@nii.ac.jp, wangxin@nii.ac.jp"

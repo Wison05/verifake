@@ -1,0 +1,36 @@
+services:
+  app:
+    build: .
+    container_name: verifake_backend
+    tty: true
+    stdin_open: true
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/backend:/app/services/backend
+      - ./storage:/app/storage
+    environment:
+      - PYTHONUNBUFFERED=1
+    mem_limit: "1g"
+    cpus: "1"
+    command: uvicorn services.backend.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - backend_network
+
+  # 2. (나중에 추가할) 데이터베이스 서비스 예시 (주석 해제해서 사용)
+  # db:
+  #   image: postgres:15  # 또는 mysql:8
+  #   container_name: database_service
+  #   restart: always
+  #   environment:
+  #     POSTGRES_USER: user
+  #     POSTGRES_PASSWORD: password
+  #     POSTGRES_DB: my_database
+  #   volumes:
+  #     - ./data/db:/var/lib/postgresql/data
+  #   networks:
+  #     - backend_network
+
+networks:
+  backend_network:
+    driver: bridge
