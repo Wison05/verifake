@@ -1,10 +1,10 @@
-# pyright: reportMissingImports=false
+# pyright: reportMissingImports=false, reportUnknownMemberType=false
 
 import static_ffmpeg
 _ = static_ffmpeg.add_paths()
 
 from fastapi import FastAPI
-from services.backend.routers import instagram
+from services.backend.routers import instagram, media
 
 app = FastAPI(
     title="VeriFake API",
@@ -13,3 +13,10 @@ app = FastAPI(
 )
 
 app.include_router(instagram.router, prefix="/api/v1")
+app.add_api_route(
+    "/media/video-stage1/explain",
+    media.explain_video_stage1,
+    methods=["POST"],
+    summary="영상/음성 result.json 기반 LLM 설명 생성",
+    tags=["Media"],
+)
