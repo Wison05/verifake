@@ -26,6 +26,18 @@ Thumbs.db
 *.key
 *.pem
 
+# AI model checkpoints
+services/ai/checkpoints/**/*.ckpt
+services/ai/checkpoints/**/*.pt
+services/ai/checkpoints/**/*.pth
+services/ai/checkpoints/**/*.bin
+services/ai/checkpoints/**/*.safetensors
+storage/audio/
+storage/video/
+storage/tmp/
+storage/jobs/
+outputs/
+
 # --- Backend Security Files ---
 services/backend/services/config.py
 services/backend/firebase-adminsdk.json
