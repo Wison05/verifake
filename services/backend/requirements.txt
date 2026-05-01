@@ -4,3 +4,8 @@ pydantic
 instaloader
 static-ffmpeg
 python-multipart
+numpy
+opencv-python-headless
+retina-face
+google-genai
+python-dotenv
