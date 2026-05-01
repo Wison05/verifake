@@ -2,7 +2,6 @@
 
 import subprocess
 from pathlib import Path
-from typing import Any
 
 import static_ffmpeg
 
@@ -56,16 +55,17 @@ def separate_streams(input_file: Path, job_id: str):
     return str(video_out), str(audio_out)
 
 
+def _safe_upload_filename(filename: str) -> str:
+    safe_name = Path(filename).name.strip()
+    if safe_name:
+        return safe_name
+    return "upload.mp4"
+
+
 def save_and_split(task_id: str, filename: str, content: bytes):
     dest_dir = TMP_DIR / task_id
     dest_dir.mkdir(parents=True, exist_ok=True)
-    dest_path = dest_dir / filename
+    dest_path = dest_dir / _safe_upload_filename(filename)
     _ = dest_path.write_bytes(content)
     video_path, audio_path = separate_streams(dest_path, task_id)
     return str(dest_dir), video_path, audio_path
-
-
-def run_video_stage1_preprocess_job(input_file: Path, job_id: str | None = None) -> dict[str, Any]:
-    from services.ai.pipelines.video_stage1.preprocess import run_video_stage1_preprocess
-
-    return run_video_stage1_preprocess(input_path=str(input_file), job_id=job_id)

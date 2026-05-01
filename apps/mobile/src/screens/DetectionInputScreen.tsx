@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, SafeAreaView, TouchableOpacity, Image, TextInput, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
-import { CloudArrowUpIcon, LinkIcon, VideoCameraIcon } from 'react-native-heroicons/outline';
+import { CloudArrowUpIcon, LinkIcon } from 'react-native-heroicons/outline';
 import { styles } from './DetectionScreen.styles';
 import { BottomNavigation } from '../components/BottomNavigaton';
 
@@ -44,11 +44,12 @@ export const DetectionInputScreen = ({ navigation }: any) => {
     };
 
     const handleStartAnalysis = () => {
-        if (!videoUri && !url) {
+        const trimmedUrl = url.trim();
+        if (!videoUri && !trimmedUrl) {
             Alert.alert("알림", "분석할 영상이나 URL을 등록해주세요.");
             return;
         }
-        navigation.navigate('Analysis', { videoUri, thumbnailUri });
+        navigation.navigate('Analysis', { videoUri, thumbnailUri, url: trimmedUrl || null });
     };
 
     return (
@@ -98,10 +99,10 @@ export const DetectionInputScreen = ({ navigation }: any) => {
 
                 {/* 분석 버튼 */}
                 <TouchableOpacity
-                    style={[styles.startBtn, !url && { opacity: 0.8 }]}
+                    style={[styles.startBtn, !videoUri && !url && { opacity: 0.8 }]}
                     onPress={handleStartAnalysis}
                 >
-                    <Text style={styles.startBtnText}>영상 분석 시작하기</Text>
+                    <Text style={styles.startBtnText}>영상/음성 분리 시작하기</Text>
                 </TouchableOpacity>
             </View>
 
