@@ -5,6 +5,7 @@ import subprocess
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import TypedDict
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
@@ -13,7 +14,6 @@ from services.ai.common.job_paths import build_job_paths
 from services.ai.pipelines.video_stage1.config import get_stage1_storage_root
 from services.ai.pipelines.video_stage1.detect import run_video_stage1_detection
 from services.ai.pipelines.video_stage1.exceptions import Stage1UnavailableError
-from services.backend.services.processor import run_video_stage1_preprocess_job
 from services.backend.services.video_analyzer import run_video_detect_job, validate_video_ai_python
 from services.backend.tasks import create_video_detect_job, get_video_detect_job
 
@@ -35,12 +35,29 @@ class VideoStage1DetectRequest(BaseModel):
     preprocessing_json: str
 
 
+class VideoStage1PreprocessResult(TypedDict):
+    job_id: str
+    status: str
+
+
 def _get_project_root() -> Path:
     return PROJECT_ROOT
 
 
 def _get_stage1_storage_root() -> Path:
     return Path(get_stage1_storage_root())
+
+
+def run_video_stage1_preprocess_job(input_file: Path, job_id: str | None = None) -> VideoStage1PreprocessResult:
+    from services.ai.pipelines.video_stage1.preprocess import run_video_stage1_preprocess
+
+    raw_result: dict[str, object] = run_video_stage1_preprocess(input_path=str(input_file), job_id=job_id)
+    raw_job_id = raw_result.get("job_id")
+    raw_status = raw_result.get("status")
+    if not isinstance(raw_job_id, str) or not isinstance(raw_status, str):
+        raise RuntimeError("Stage1 preprocessing returned an invalid result.")
+
+    return {"job_id": raw_job_id, "status": raw_status}
 
 
 def _get_resolved_stage1_storage_root() -> Path:
@@ -52,7 +69,7 @@ def _get_resolved_stage1_storage_root() -> Path:
 
 def _is_within_directory(path: Path, directory: Path) -> bool:
     try:
-        path.relative_to(directory)
+        _ = path.relative_to(directory)
         return True
     except ValueError:
         return False

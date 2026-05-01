@@ -55,6 +55,8 @@ export const styles = StyleSheet.create({
     },
     reasonTitle: { color: '#7c6cfa', fontSize: 13, fontWeight: 'bold', marginBottom: 12 },
     reasonContent: { color: '#e1e1e6', fontSize: 15, lineHeight: 24 },
+    pathLabel: { color: '#7c6cfa', fontSize: 12, fontWeight: 'bold', marginTop: 8, marginBottom: 4 },
+    pathText: { color: '#e1e1e6', fontSize: 12, lineHeight: 18 },
 
     // 기타 
     detailGrid: { flexDirection: 'row', gap: 12, marginBottom: 24 },

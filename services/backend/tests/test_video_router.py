@@ -87,16 +87,18 @@ class VideoRouterTests(unittest.TestCase):
 
         self.assertEqual(get_video_detect_result(job_id), payload)
 
-    def test_main_registers_video_detect_job_routes(self) -> None:
+    def test_main_does_not_register_video_ai_routes(self) -> None:
         fake_static_ffmpeg = types.SimpleNamespace(add_paths=lambda: None)
 
         with patch.dict(sys.modules, {"static_ffmpeg": fake_static_ffmpeg}):
             backend_main = importlib.import_module("services.backend.main")
 
         paths = sorted(route.path for route in backend_main.app.routes)
-        self.assertIn("/api/v1/video-stage1/detect/jobs", paths)
-        self.assertIn("/api/v1/video-stage1/detect/jobs/{task_id}", paths)
-        self.assertIn("/api/v1/video-stage1/detect/jobs/{task_id}/result", paths)
+        self.assertNotIn("/api/v1/video-stage1/preprocess", paths)
+        self.assertNotIn("/api/v1/video-stage1/detect", paths)
+        self.assertNotIn("/api/v1/video-stage1/detect/jobs", paths)
+        self.assertNotIn("/api/v1/video-stage1/detect/jobs/{task_id}", paths)
+        self.assertNotIn("/api/v1/video-stage1/detect/jobs/{task_id}/result", paths)
 
 
 if __name__ == "__main__":
