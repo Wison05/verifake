@@ -1,6 +1,7 @@
 import asyncio
 import re
 import instaloader
+import uuid
 from pathlib import Path
 from sqlalchemy.orm import Session
 from services.backend.services.processor import separate_streams, TMP_DIR
@@ -40,6 +41,11 @@ async def run_download(task_id: str, url: str):
         if not task:
             print(f"Task {task_id} not found in database")
             return
+
+        if not task.user_id: # 이미 존재하지 않는 경우에만 생성
+            task.user_id = str(uuid.uuid4())
+            print(f"Generated new user_id: {task.user_id} for task: {task_id}")
+            
 
         dest_dir = TMP_DIR / task_id
         dest_dir.mkdir(parents=True, exist_ok=True)
