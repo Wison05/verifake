@@ -4,7 +4,7 @@ from services.backend import database, crud
 
 router = APIRouter()
 
-@router.get("/user/{user_id}/fcm-token", summary="유저의 최신 FCM 토큰 조회")
+@router.get("/user/{user_id}/fcm-token", summary="유저의 최신 FCM 토큰 조회", tags=["Status"])
 async def read_user_fcm_token(user_id: str, db: Session = Depends(database.get_db)):
     token = crud.get_latest_fcm_token_by_user(db, user_id)
     

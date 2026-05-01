@@ -83,6 +83,7 @@ async def get_status(task_id: str, db: Session = Depends(database.get_db)):
     # 3. DB에 있는 성공 데이터를 반환합니다.
     return {
         "task_id": task.task_id,
+        "user_id": task.user_id,
         "status": task.status,
         "origin_url": task.origin_url,
         "video_path": task.storage_path,
