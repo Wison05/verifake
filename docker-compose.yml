@@ -13,23 +13,31 @@ services:
       - PYTHONUNBUFFERED=1
     mem_limit: "1g"
     cpus: "1"
+      - .:/app
+    depends_on:
+      - db
+    environment:
+      # FastAPI에서 사용할 DB 접속 주소
+      DATABASE_URL: "mysql+pymysql://user:password@db:3306/verifake_db"
     command: uvicorn services.backend.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - backend_network
 
-  # 2. (나중에 추가할) 데이터베이스 서비스 예시 (주석 해제해서 사용)
-  # db:
-  #   image: postgres:15  # 또는 mysql:8
-  #   container_name: database_service
-  #   restart: always
-  #   environment:
-  #     POSTGRES_USER: user
-  #     POSTGRES_PASSWORD: password
-  #     POSTGRES_DB: my_database
-  #   volumes:
-  #     - ./data/db:/var/lib/postgresql/data
-  #   networks:
-  #     - backend_network
+  db:
+    image: mysql:8.0
+    container_name: verifake_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password  # 루트 비밀번호
+      MYSQL_DATABASE: verifake_db        # 생성할 DB 이름
+      MYSQL_USER: user                   # 일반 사용자
+      MYSQL_PASSWORD: password           # 일반 사용자 비밀번호
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql      # 데이터 영구 저장
+    networks:
+      - backend_network
 
 networks:
   backend_network:
