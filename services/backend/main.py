@@ -4,7 +4,11 @@ import static_ffmpeg
 static_ffmpeg.add_paths()
 
 from fastapi import FastAPI
+<<<<<<< HEAD
 from services.backend.routers import video, instagram, user
+=======
+from services.backend.routers import video, instagram, audio, user
+>>>>>>> a0ea25915f3d4e379c6ce17de996093dbc48a613
 from services.backend.database import engine
 from services.backend import models
 
@@ -28,4 +32,7 @@ app.include_router(video.router, prefix="/api/v1")
 app.include_router(video.router, prefix="/media")
 app.include_router(instagram.router, prefix="/api/v1")
 app.include_router(audio.router, prefix="/api/v1/audio")
+<<<<<<< HEAD
 app.include_router(user.router, prefix="/api/v1")
+=======
+>>>>>>> a0ea25915f3d4e379c6ce17de996093dbc48a613
