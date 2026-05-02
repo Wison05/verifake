@@ -37,3 +37,9 @@ storage/video/
 storage/tmp/
 storage/jobs/
 outputs/
+
+# --- Backend Security Files ---
+services/backend/services/config.py
+services/backend/firebase-adminsdk.json
+**/config.py
+**/firebase-adminsdk.json
