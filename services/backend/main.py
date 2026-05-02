@@ -4,7 +4,7 @@ import static_ffmpeg
 static_ffmpeg.add_paths()
 
 from fastapi import FastAPI
-from services.backend.routers import video, instagram
+from services.backend.routers import video, instagram, audio
 from services.backend.database import engine
 from services.backend import models
 
