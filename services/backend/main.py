@@ -27,3 +27,4 @@ def read_root():
 app.include_router(video.router, prefix="/api/v1")
 app.include_router(video.router, prefix="/media")
 app.include_router(instagram.router, prefix="/api/v1")
+app.include_router(audio.router, prefix="/api/v1/audio")
