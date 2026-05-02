@@ -14,6 +14,7 @@ class VideoMetadata(Base):
     storage_path = Column(Text, nullable=True)     # 2. 분리된 영상 경로
     audio_path = Column(Text, nullable=True)       # 3. 분리된 음성 경로
 
+    user_id = Column(String(50), index=True)
     fcm_token = Column(String(255), nullable=True)
     phash_value = Column(String(64), nullable=True)
     status = Column(String(20), default="PENDING")
