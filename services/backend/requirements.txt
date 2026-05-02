@@ -5,3 +5,8 @@ instaloader
 static-ffmpeg
 python-multipart
 firebase-admin
+videohash
+sqlalchemy
+pymysql
+cryptography
+pillow
