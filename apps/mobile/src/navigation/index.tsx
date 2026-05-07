@@ -4,6 +4,7 @@ import { DetectionInputScreen } from '../screens/DetectionInputScreen';
 import { AnalysisScreen } from '../screens/AnalysisScreen';
 import { ResultScreen } from '../screens/ResultScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { HistoryScreen } from '../screens/HistoryScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -15,6 +16,7 @@ export function RootNavigator() {
       <Stack.Screen name="Analysis" component={AnalysisScreen} />
       <Stack.Screen name="Result" component={ResultScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="History" component={HistoryScreen} />
     </Stack.Navigator>
   );
 }
