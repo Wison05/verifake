@@ -4,7 +4,8 @@ import { ChevronLeftIcon } from 'react-native-heroicons/outline';
 import Svg, { Circle, G } from 'react-native-svg';
 import { styles } from './ResultScreen.styles';
 
-export const ResultDetailScreen = ({ navigation }: any) => {
+export const ResultDetailScreen = ({ navigation, route }: any) => {
+    // const { score } = route.params || { score: 87 };
     //가짜 분석 텍스트 데이터
     const detailData = {
         totalScore: 87,
@@ -41,7 +42,7 @@ export const ResultDetailScreen = ({ navigation }: any) => {
                         />
                     </G>
                 </Svg>
-                <View style={{ position: 'absolute', top: 32 }}>
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 20, justifyContent: 'center', alignItems: 'center' }}>
                     <Text style={{ color: '#fff', fontSize: 13, fontWeight: 'bold' }}>{percentage}%</Text>
                 </View>
                 <Text style={{ color: '#a0a0ab', fontSize: 11, marginTop: 8, textAlign: 'center' }}>{label}</Text>
