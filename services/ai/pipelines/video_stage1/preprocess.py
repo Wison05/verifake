@@ -107,7 +107,11 @@ def _build_status(face_detected: bool, errors: list[str]) -> PipelineStatus:
     return "partial_success"
 
 
-def run_video_stage1_preprocess(input_path: str, job_id: str | None = None) -> dict[str, Any]:
+def run_video_stage1_preprocess(
+    input_path: str,
+    job_id: str | None = None,
+    storage_root: str | Path | None = None,
+) -> dict[str, Any]:
     config = load_stage1_config()
     source_path = Path(input_path)
     if not source_path.exists():
@@ -121,7 +125,8 @@ def run_video_stage1_preprocess(input_path: str, job_id: str | None = None) -> d
     ) = _load_stage1_runtime_components()
 
     resolved_job_id = job_id or _generate_job_id()
-    paths = create_job_dirs(resolved_job_id, storage_root=config["storage_root"])
+    resolved_storage_root = storage_root if storage_root is not None else config["storage_root"]
+    paths = create_job_dirs(resolved_job_id, storage_root=resolved_storage_root)
     logger = _create_logger(paths["preprocess_log_path"], resolved_job_id)
 
     logger.info("Stage1 A preprocess started: %s", source_path)
@@ -217,13 +222,18 @@ def _build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run VeriFake Stage1 A video preprocessing")
     parser.add_argument("--input", required=True, help="Input video path")
     parser.add_argument("--job-id", required=False, help="Optional job id")
+    parser.add_argument("--storage-root", required=False, help="Optional storage root override")
     return parser
 
 
 def main() -> None:
     parser = _build_argument_parser()
     args = parser.parse_args()
-    result = run_video_stage1_preprocess(input_path=args.input, job_id=args.job_id)
+    result = run_video_stage1_preprocess(
+        input_path=args.input,
+        job_id=args.job_id,
+        storage_root=args.storage_root,
+    )
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
