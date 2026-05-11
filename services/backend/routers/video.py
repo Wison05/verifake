@@ -5,7 +5,7 @@ import subprocess
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import TypedDict
+from typing import Optional, TypedDict
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
@@ -28,7 +28,7 @@ DETECT_RUNTIME_ERROR_DETAIL = "Stage1 B AI 런타임이 준비되지 않았습�
 
 class VideoStage1PreprocessRequest(BaseModel):
     file_path: str
-    job_id: str | None = None
+    job_id: Optional[str] = None
 
 
 class VideoStage1DetectRequest(BaseModel):
@@ -48,7 +48,10 @@ def _get_stage1_storage_root() -> Path:
     return Path(get_stage1_storage_root())
 
 
-def run_video_stage1_preprocess_job(input_file: Path, job_id: str | None = None) -> VideoStage1PreprocessResult:
+def run_video_stage1_preprocess_job(
+    input_file: Path,
+    job_id: Optional[str] = None,
+) -> VideoStage1PreprocessResult:
     from services.ai.pipelines.video_stage1.preprocess import run_video_stage1_preprocess
 
     raw_result: dict[str, object] = run_video_stage1_preprocess(input_path=str(input_file), job_id=job_id)
@@ -102,7 +105,7 @@ def _validate_preprocessing_json_path(raw_path: str) -> Path:
     return resolved_path
 
 
-def _validate_job_id(job_id: str | None) -> None:
+def _validate_job_id(job_id: Optional[str]) -> None:
     if job_id is None:
         return
     if not VALID_JOB_ID_PATTERN.fullmatch(job_id):

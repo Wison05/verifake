@@ -46,6 +46,12 @@ def _float_or_none(value: Any) -> float | None:
     return float(value)
 
 
+def _int_or_none(value: Any) -> int | None:
+    if value is None:
+        return None
+    return int(value)
+
+
 def extract_video_fake_score(video_result: Mapping[str, Any] | None) -> float | None:
     if video_result is None:
         return None
@@ -60,10 +66,38 @@ def extract_video_fake_score(video_result: Mapping[str, Any] | None) -> float | 
 def extract_audio_fake_score(audio_result: Mapping[str, Any] | None) -> float | None:
     if audio_result is None:
         return None
+    scored_window_count = _int_or_none(audio_result.get("scored_window_count"))
+    if scored_window_count is None:
+        scored_window_count = _int_or_none(
+            _nested_get(audio_result, ("audio_inference", "scored_window_count"))
+        )
+    if scored_window_count is not None and scored_window_count <= 0:
+        return None
     preferred = _float_or_none(audio_result.get("audio_fake_score"))
     if preferred is not None:
         return preferred
     return _float_or_none(audio_result.get("audio_fake_prob_like"))
+
+
+def _extract_audio_count(audio_result: Mapping[str, Any] | None, key: str) -> int | None:
+    if audio_result is None:
+        return None
+    value = audio_result.get(key)
+    if value is None:
+        value = _nested_get(audio_result, ("audio_inference", key))
+    return _int_or_none(value)
+
+
+def _extract_audio_model_error(audio_result: Mapping[str, Any] | None) -> str | None:
+    if audio_result is None:
+        return None
+    value = audio_result.get("audio_model_error")
+    if value:
+        return str(value)
+    model_errors = _nested_get(audio_result, ("audio_inference", "model_errors"))
+    if isinstance(model_errors, list) and model_errors:
+        return str(model_errors[0])
+    return None
 
 
 def _base_record(sample: ManifestSample, modality: str, label: int, fake_score: float) -> dict[str, Any]:
@@ -91,6 +125,10 @@ def build_prediction_records(
 ) -> PredictionRecords:
     video_score = extract_video_fake_score(video_result)
     audio_score = extract_audio_fake_score(audio_result)
+    audio_scored_window_count = _extract_audio_count(audio_result, "scored_window_count")
+    audio_failed_window_count = _extract_audio_count(audio_result, "failed_window_count")
+    audio_skipped_window_count = _extract_audio_count(audio_result, "skipped_window_count")
+    audio_model_error = _extract_audio_model_error(audio_result)
 
     video = (
         _base_record(sample, "video", sample.labels["video_label"], video_score)
@@ -126,6 +164,10 @@ def build_prediction_records(
         "video_fake_score": video_score,
         "audio_fake_score": audio_score,
         "fusion_fake_score": fusion_score,
+        "audio_scored_window_count": audio_scored_window_count,
+        "audio_failed_window_count": audio_failed_window_count,
+        "audio_skipped_window_count": audio_skipped_window_count,
+        "audio_model_error": audio_model_error,
     }
     return PredictionRecords(video=video, audio=audio, fusion=fusion, combined=combined)
 
@@ -142,8 +184,35 @@ def load_existing_sample_ids(paths: Iterable[str | Path]) -> set[str]:
                     continue
                 try:
                     row = json.loads(line)
-                except json.JSONDecodeError as exc:
-                    raise ValueError(f"Invalid JSONL row in {path}: {line.strip()}") from exc
+                except json.JSONDecodeError:
+                    continue
+                sample_id = row.get("sample_id")
+                if sample_id:
+                    sample_ids.add(str(sample_id))
+    return sample_ids
+
+
+def load_complete_combined_sample_ids(paths: str | Path | Iterable[str | Path]) -> set[str]:
+    sample_ids: set[str] = set()
+    if isinstance(paths, (str, Path)):
+        raw_paths: Iterable[str | Path] = [paths]
+    else:
+        raw_paths = paths
+
+    for raw_path in raw_paths:
+        combined_path = Path(raw_path)
+        if not combined_path.exists():
+            continue
+        with combined_path.open("r", encoding="utf-8") as jsonl_file:
+            for line in jsonl_file:
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if row.get("video_fake_score") is None or row.get("audio_fake_score") is None:
+                    continue
                 sample_id = row.get("sample_id")
                 if sample_id:
                     sample_ids.add(str(sample_id))
@@ -151,20 +220,22 @@ def load_existing_sample_ids(paths: Iterable[str | Path]) -> set[str]:
 
 
 class PredictionWriter:
-    def __init__(self, run_dir: str | Path) -> None:
+    def __init__(self, run_dir: str | Path, *, suffix: str = "") -> None:
         root = Path(run_dir)
         root.mkdir(parents=True, exist_ok=True)
+        suffix = suffix.strip()
         self.paths = PredictionPaths(
-            video_jsonl=root / "predictions_video.jsonl",
-            audio_jsonl=root / "predictions_audio.jsonl",
-            fusion_jsonl=root / "predictions_fusion.jsonl",
-            combined_jsonl=root / "predictions_combined.jsonl",
-            combined_csv=root / "predictions_combined.csv",
-            failed_jsonl=root / "failed_cases.jsonl",
+            video_jsonl=root / f"predictions_video{suffix}.jsonl",
+            audio_jsonl=root / f"predictions_audio{suffix}.jsonl",
+            fusion_jsonl=root / f"predictions_fusion{suffix}.jsonl",
+            combined_jsonl=root / f"predictions_combined{suffix}.jsonl",
+            combined_csv=root / f"predictions_combined{suffix}.csv",
+            failed_jsonl=root / f"failed_cases{suffix}.jsonl",
         )
+        self._resume_combined_paths = [root / "predictions_combined.jsonl", self.paths.combined_jsonl]
 
     def processed_sample_ids(self) -> set[str]:
-        return load_existing_sample_ids([self.paths.combined_jsonl])
+        return load_complete_combined_sample_ids(self._resume_combined_paths)
 
     def write_records(self, records: PredictionRecords) -> None:
         if records.video is not None:

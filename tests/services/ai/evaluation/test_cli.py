@@ -33,9 +33,13 @@ def test_cli_main_loads_config_runs_evaluation_and_prints_json(
         config: EvalConfig,
         limit: int | None = None,
         run_dir: Path | None = None,
+        sample_type: str | None = None,
+        results_root: Path | None = None,
     ) -> dict[str, object]:
         captured["limit"] = limit
         captured["run_dir"] = run_dir
+        captured["sample_type"] = sample_type
+        captured["results_root"] = results_root
         assert run_dir is not None
         return {
             "run_dir": str(run_dir),
@@ -57,10 +61,21 @@ def test_cli_main_loads_config_runs_evaluation_and_prints_json(
             "7",
             "--run-dir",
             str(run_dir),
+            "--type",
+            "RealVideo-RealAudio",
+            "--results-root",
+            str(output_root / "final"),
         ]
     )
 
     printed = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert captured == {"config_path": config_path, "override": output_root, "limit": 7, "run_dir": run_dir}
+    assert captured == {
+        "config_path": config_path,
+        "override": output_root,
+        "limit": 7,
+        "run_dir": run_dir,
+        "sample_type": "RealVideo-RealAudio",
+        "results_root": output_root / "final",
+    }
     assert printed["run_dir"].endswith("existing-run")

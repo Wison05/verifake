@@ -41,6 +41,8 @@ def test_extract_scores_from_existing_pipeline_schemas() -> None:
     assert extract_video_fake_score({"video_score": {"final_fake_score": 0.65}}) == 0.65
     assert extract_audio_fake_score({"audio_fake_score": 0.2, "audio_fake_prob_like": 0.8}) == 0.2
     assert extract_audio_fake_score({"audio_fake_prob_like": 0.8}) == 0.8
+    assert extract_audio_fake_score({"audio_fake_prob_like": 0.0, "scored_window_count": 0}) is None
+    assert extract_audio_fake_score({"audio_inference": {"scored_window_count": 0}, "audio_fake_prob_like": 0.0}) is None
 
 
 def test_build_prediction_records_maps_scores_and_fusion_average() -> None:
@@ -60,6 +62,27 @@ def test_build_prediction_records_maps_scores_and_fusion_average() -> None:
     assert records.audio["fake_score"] == 0.3
     assert records.fusion["fake_score"] == 0.6
     assert records.fusion["label"] == 1
+
+
+def test_build_prediction_records_excludes_unscored_audio_from_metrics() -> None:
+    records = build_prediction_records(
+        sample(),
+        video_result={"detection": {"video_score": {"final_fake_score": 0.9}}},
+        audio_result={
+            "audio_fake_prob_like": 0.0,
+            "scored_window_count": 0,
+            "failed_window_count": 2,
+            "skipped_window_count": 0,
+            "audio_model_error": "AttributeError: module 'numpy' has no attribute 'float'",
+        },
+    )
+
+    assert records.audio is None
+    assert records.fusion is None
+    assert records.combined["audio_fake_score"] is None
+    assert records.combined["audio_scored_window_count"] == 0
+    assert records.combined["audio_failed_window_count"] == 2
+    assert "numpy" in records.combined["audio_model_error"]
 
 
 def test_prediction_writer_writes_jsonl_csv_failures_and_reads_resume_ids(tmp_path: Path) -> None:
