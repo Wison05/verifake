@@ -77,7 +77,29 @@ class AudioRouterTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(context.exception.status_code, 404)
 
-    def test_post_jobs_route_returns_202(self) -> None:
+    async def test_submit_uses_input_filename_stem_as_task_id(self) -> None:
+        from services.backend.routers.audio import AudioAnalyzeRequest, create_audio_job_endpoint
+        from services.backend.tasks import audio_jobs_db
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = Path(temp_dir) / "6a26db6c-0951-44c7-8208-e2f3ebf4cc8e_audio.wav"
+            input_path.write_text("wav", encoding="utf-8")
+
+            with patch(
+                "services.backend.routers.audio.validate_audio_python",
+                return_value=input_path,
+            ):
+                response = await create_audio_job_endpoint(
+                    background_tasks=BackgroundTasks(),
+                    req=AudioAnalyzeRequest(file_path=str(input_path)),
+                )
+
+        expected_task_id = "6a26db6c-0951-44c7-8208-e2f3ebf4cc8e_audio"
+        self.assertEqual(response["task_id"], expected_task_id)
+        self.assertIn(expected_task_id, audio_jobs_db)
+        self.assertEqual(audio_jobs_db[expected_task_id]["artifacts_dir"], f"storage/jobs/{expected_task_id}/audio")
+
+    def test_post_jobs_route_is_not_registered_on_main_app(self) -> None:
         fake_static_ffmpeg = types.SimpleNamespace(add_paths=lambda: None)
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -94,9 +116,9 @@ class AudioRouterTests(unittest.IsolatedAsyncioTestCase):
                 client = TestClient(backend_main.app)
                 response = client.post("/api/v1/audio/jobs", json={"file_path": str(input_path)})
 
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 404)
 
-    async def test_main_registers_audio_routes_without_colliding_status(self) -> None:
+    async def test_main_does_not_register_audio_ai_routes(self) -> None:
         fake_static_ffmpeg = types.SimpleNamespace(add_paths=lambda: None)
 
         with patch.dict(sys.modules, {"static_ffmpeg": fake_static_ffmpeg}):
@@ -104,9 +126,9 @@ class AudioRouterTests(unittest.IsolatedAsyncioTestCase):
 
         paths = sorted(route.path for route in backend_main.app.routes)
         self.assertIn("/api/v1/status/{task_id}", paths)
-        self.assertIn("/api/v1/audio/jobs", paths)
-        self.assertIn("/api/v1/audio/jobs/{task_id}", paths)
-        self.assertIn("/api/v1/audio/jobs/{task_id}/result", paths)
+        self.assertNotIn("/api/v1/audio/jobs", paths)
+        self.assertNotIn("/api/v1/audio/jobs/{task_id}", paths)
+        self.assertNotIn("/api/v1/audio/jobs/{task_id}/result", paths)
 
 
 if __name__ == "__main__":

@@ -40,7 +40,7 @@
     "framework": "DeepfakeBench",
     "model_name": "EfficientNet-B4",
     "score_field": "raw_fake_score",
-    "batch_size": 16,
+    "batch_size": 8,
     "use_mock": false,
     "weights_path": "services/ai/checkpoints/video/effnb4_best.pth",
     "device": "auto",
