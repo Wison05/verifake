@@ -4,8 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import {
     HomeIcon,
     MagnifyingGlassIcon,
-    ClipboardDocumentListIcon,
-    UserIcon
+    ClipboardDocumentListIcon
 } from 'react-native-heroicons/outline';
 import { styles } from './BottomNavigation.styles';
 
@@ -15,7 +14,6 @@ export const BottomNavigation = ({ activeRoute }: any) => {
         { name: 'Home', label: '홈', Icon: HomeIcon },
         { name: 'DetectionInput', label: '탐지', Icon: MagnifyingGlassIcon },
         { name: 'History', label: '기록', Icon: ClipboardDocumentListIcon },
-        { name: 'Profile', label: '프로필', Icon: UserIcon },
     ];
 
     return (

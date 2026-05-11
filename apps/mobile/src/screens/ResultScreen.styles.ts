@@ -58,7 +58,7 @@ export const styles = StyleSheet.create({
     pathLabel: { color: '#7c6cfa', fontSize: 12, fontWeight: 'bold', marginTop: 8, marginBottom: 4 },
     pathText: { color: '#e1e1e6', fontSize: 12, lineHeight: 18 },
 
-    // 기타 
+    // 기타
     detailGrid: { flexDirection: 'row', gap: 12, marginBottom: 24 },
     detailItem: { flex: 1, backgroundColor: '#11111d', padding: 16, borderRadius: 16, alignItems: 'center' },
     detailLabel: { color: '#444468', fontSize: 12, marginBottom: 4 },

@@ -27,8 +27,17 @@
                     "action": "SEND",
                     "data": [
                         {
+                            "mimeType": "image/*"
+                        },
+                        {
+                            "mimeType": "video/*"
+                        },
+                        {
                             "mimeType": "text/plain"
                         }
+                    ],
+                    "category": [
+                        "DEFAULT"
                     ]
                 }
             ]
