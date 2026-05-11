@@ -16,15 +16,17 @@ from fastapi.testclient import TestClient
 
 class AudioRouterTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
-        from services.backend.tasks import audio_jobs_db
-
-        audio_jobs_db.clear()
+        from services.backend.tasks import clear_stores
+        clear_stores()
 
     async def test_submit_rejects_missing_source_file(self) -> None:
         from services.backend.routers.audio import AudioAnalyzeRequest, create_audio_job_endpoint
 
         with self.assertRaises(HTTPException) as context:
-            await create_audio_job_endpoint(background_tasks=BackgroundTasks(), req=AudioAnalyzeRequest(file_path="C:/missing.wav"))
+            await create_audio_job_endpoint(
+                background_tasks=BackgroundTasks(),
+                req=AudioAnalyzeRequest(file_path="C:/missing.wav"),
+            )
 
         self.assertEqual(context.exception.status_code, 400)
 
@@ -37,7 +39,10 @@ class AudioRouterTests(unittest.IsolatedAsyncioTestCase):
 
             with patch.dict("os.environ", {}, clear=False):
                 with self.assertRaises(HTTPException) as context:
-                    await create_audio_job_endpoint(background_tasks=BackgroundTasks(), req=AudioAnalyzeRequest(file_path=str(input_path)))
+                    await create_audio_job_endpoint(
+                        background_tasks=BackgroundTasks(),
+                        req=AudioAnalyzeRequest(file_path=str(input_path)),
+                    )
 
         self.assertIn(context.exception.status_code, {500, 503})
 
