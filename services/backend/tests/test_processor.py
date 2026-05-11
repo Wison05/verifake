@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -27,6 +28,32 @@ class ProcessorTests(unittest.TestCase):
             self.assertEqual(kwargs["capture_output"], True)
             self.assertEqual(kwargs["text"], True)
             self.assertEqual(kwargs["timeout"], MEDIA_SPLIT_TIMEOUT_SEC)
+
+    def test_processor_exposes_only_media_separation_not_ai_preprocessing(self) -> None:
+        import services.backend.services.processor as processor
+
+        self.assertFalse(hasattr(processor, "run_video_stage1_preprocess_job"))
+
+    def test_save_and_split_sanitizes_uploaded_filename_to_task_directory(self) -> None:
+        from services.backend.services import processor
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_dir = Path(temp_dir) / "tmp"
+            captured_inputs: list[Path] = []
+
+            def fake_separate_streams(input_file: Path, job_id: str) -> tuple[str, str]:
+                captured_inputs.append(input_file)
+                return f"storage/video/{job_id}_video.mp4", f"storage/audio/{job_id}_audio.wav"
+
+            with patch.object(processor, "TMP_DIR", tmp_dir), patch.object(
+                processor,
+                "separate_streams",
+                side_effect=fake_separate_streams,
+            ):
+                download_dir, _, _ = processor.save_and_split("job-1", "../evil.mp4", b"video")
+
+        self.assertEqual(download_dir, str(tmp_dir / "job-1"))
+        self.assertEqual(captured_inputs, [tmp_dir / "job-1" / "evil.mp4"])
 
 
 if __name__ == "__main__":

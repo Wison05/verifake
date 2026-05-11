@@ -48,6 +48,22 @@ class AudioAnalyzerTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     get_audio_python()
 
+    def test_get_audio_python_preserves_virtualenv_symlink_path(self) -> None:
+        from services.backend.services.audio_analyzer import get_audio_python
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            real_python = temp_root / "python-real"
+            real_python.write_text("", encoding="utf-8")
+            symlink_python = temp_root / "python"
+            symlink_python.symlink_to(real_python)
+
+            with patch.dict("os.environ", {"VERIFAKE_AI_PYTHON": str(symlink_python)}, clear=False), patch(
+                "services.backend.services.audio_analyzer.os.access",
+                return_value=True,
+            ):
+                self.assertEqual(get_audio_python(), symlink_python.absolute())
+
     def test_build_command_uses_audio_stage1_and_expected_paths(self) -> None:
         from services.backend.services.audio_analyzer import build_audio_stage1_command
 
@@ -213,7 +229,9 @@ class AudioAnalyzerTests(unittest.TestCase):
 
             self.assertEqual(len(captured_commands), 1)
             self.assertIn("--input", captured_commands[0])
-            self.assertIn(str(input_path), captured_commands[0])
+            input_arg_index = captured_commands[0].index("--input")
+            actual_input_path = Path(captured_commands[0][input_arg_index + 1])
+            self.assertEqual(actual_input_path.resolve(), input_path.resolve())
 
     def test_run_audio_job_stores_failure_state(self) -> None:
         from services.backend.services.audio_analyzer import run_audio_job
@@ -257,8 +275,8 @@ class AudioAnalyzerTests(unittest.TestCase):
             create_audio_job("job-3", str(input_path), "storage/jobs/job-3/audio")
 
             timeout_exc = subprocess.TimeoutExpired(cmd=["cmd"], timeout=5)
-            timeout_exc.stdout = "partial-out"
-            timeout_exc.stderr = "partial-err"
+            timeout_exc.stdout = b"partial-out"
+            timeout_exc.stderr = b"partial-err"
 
             with patch.dict("os.environ", {"VERIFAKE_AI_PYTHON": str(fake_python)}, clear=False), patch(
                 "services.backend.services.audio_analyzer.os.access",

@@ -3,10 +3,9 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from services.backend.services.audio_analyzer import run_audio_job, validate_audio_python
 from services.backend.tasks import AudioJob, create_audio_job, get_audio_job
@@ -15,7 +14,7 @@ router = APIRouter()
 
 
 class AudioAnalyzeRequest(BaseModel):
-    file_path: str
+    file_path: str = Field(...)
 
 
 def _get_audio_job_or_404(task_id: str) -> AudioJob:
@@ -39,7 +38,7 @@ async def create_audio_job_endpoint(
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-    task_id = str(uuid4())
+    task_id = input_path.stem
     artifacts_dir = Path("storage/jobs") / task_id / "audio"
     job = create_audio_job(task_id, str(input_path.resolve()), str(artifacts_dir))
 

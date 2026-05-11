@@ -1,3 +1,4 @@
+FROM python:3.12-slim-bookworm
 # 1. 베이스 이미지 설정
 FROM ubuntu:latest
 
@@ -8,6 +9,8 @@ ENV TF_USE_LEGACY_KERAS=1
 
 # 3. 필수 패키지 설치
 RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    curl \
     python3 \
     python3-pip \
     && apt-get clean \
@@ -19,6 +22,13 @@ WORKDIR /app
 # 5. 의존성 파일 복사 및 설치 (AI 런타임 포함)
 # 호스트의 requirements 파일들을 임시 복사하여 설치합니다.
 COPY services/backend/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+WORKDIR /app
+COPY services/backend /app/services/backend
+
+EXPOSE 8000
+CMD ["uvicorn", "services.backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 COPY services/backend/requirements-ai-stage1.txt /tmp/requirements-ai-stage1.txt
 COPY services/backend/requirements-dev.txt /tmp/requirements-dev.txt
 

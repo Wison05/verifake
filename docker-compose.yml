@@ -1,12 +1,17 @@
 services:
   app:
     build: .
-    container_name: ubuntu_app
+    container_name: verifake_backend
     tty: true
     stdin_open: true
     ports:
       - "8000:8000"
     volumes:
+      - ./services/backend:/app/services/backend
+      - ./storage:/app/storage
+    environment:
+      - PYTHONUNBUFFERED=1
+    cpus: "1"
       - .:/app
     depends_on:
       - db
