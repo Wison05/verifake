@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeftIcon } from 'react-native-heroicons/outline';
 import { styles } from './ResultScreen.styles';
@@ -11,22 +11,39 @@ interface ResultRouteParams {
     thumbnailUri?: string | null;
 }
 
+function deriveIsFake(verdict: string | null | undefined): boolean | null {
+    if (!verdict) return null;
+    return verdict.toUpperCase() === 'FAKE';
+}
+
 export const ResultScreen = ({ navigation, route }: any) => {
     const { separatedMedia, thumbnailUri } = (route.params || {}) as ResultRouteParams;
 
-    // TODO: 실제 AI 분석 결과로 교체 예정
-    const analysisResult = {
-        deepfakeScore: 87,
-        isFake: true,
-        summary: '이 영상에서 두 가지 이상한 점이 발견되었습니다.',
-        details: [
-            '첫째, 영상에서 얼굴이 교체된 흔적이 있습니다. 특히 3분 12초~18초 구간에서 얼굴 윤곽이 자연스럽지 않게 처리된 것으로 보입니다.',
-            '둘째, 음성에서도 편집된 흔적이 감지되었습니다. 2분 45초 구간에서 음성이 이어붙인 것처럼 들립니다.',
-        ],
-        warning: '! 영상 화질 문제로 일부 구간은 정확한 분석이 어려웠습니다.',
-    };
+    if (!separatedMedia) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.backBtn}>
+                        <ArrowLeftIcon size={24} color="#7c6cfa" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>분석 결과</Text>
+                    <View style={{ width: 24 }} />
+                </View>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ color: '#a0a0ab', fontSize: 15 }}>분석 결과를 불러올 수 없습니다.</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('Home')} style={{ marginTop: 20 }}>
+                        <Text style={{ color: '#7c6cfa', fontSize: 15 }}>홈으로 돌아가기</Text>
+                    </TouchableOpacity>
+                </View>
+                <BottomNavigation navigation={navigation} activeRoute="DetectionInput" />
+            </SafeAreaView>
+        );
+    }
 
-    const { isFake, deepfakeScore } = analysisResult;
+    const isFakeResult = deriveIsFake(separatedMedia.verdict);
+    const isFake = isFakeResult ?? false;
+    const deepfakeScore = separatedMedia.deepfakeScore ?? null;
+    const hasVerdict = isFakeResult !== null;
 
     return (
         <SafeAreaView style={styles.container}>
@@ -46,26 +63,55 @@ export const ResultScreen = ({ navigation, route }: any) => {
                     ) : (
                         <View style={[styles.previewImage, { backgroundColor: '#0a0a0f' }]} />
                     )}
-                    <View style={{ position: 'absolute', top: 16, right: 16 }}>
-                        <View style={[styles.statusBadge, isFake ? styles.bgFake : styles.bgReal]}>
-                            <Text style={styles.statusBadgeText}>{isFake ? 'FAKE' : 'REAL'}</Text>
+                    {hasVerdict && (
+                        <View style={{ position: 'absolute', top: 16, right: 16 }}>
+                            <View style={[styles.statusBadge, isFake ? styles.bgFake : styles.bgReal]}>
+                                <Text style={styles.statusBadgeText}>{isFake ? 'FAKE' : 'REAL'}</Text>
+                            </View>
                         </View>
-                    </View>
+                    )}
                 </View>
 
                 {/* 딥페이크 가능성 수치 + 게이지 */}
-                <Text style={styles.mainResultTitle}>딥페이크 가능성: {deepfakeScore}%</Text>
-                <View style={[styles.gaugeBar, { marginBottom: 24 }]}>
-                    <View style={[styles.gaugeFill, { width: `${deepfakeScore}%` }, isFake ? styles.bgFake : styles.bgReal]} />
-                </View>
+                {deepfakeScore !== null ? (
+                    <>
+                        <Text style={styles.mainResultTitle}>딥페이크 가능성: {deepfakeScore}%</Text>
+                        <View style={[styles.gaugeBar, { marginBottom: 24 }]}>
+                            <View
+                                style={[
+                                    styles.gaugeFill,
+                                    { width: `${deepfakeScore}%` },
+                                    isFake ? styles.bgFake : styles.bgReal,
+                                ]}
+                            />
+                        </View>
+                    </>
+                ) : (
+                    <Text style={[styles.mainResultTitle, { marginBottom: 24 }]}>
+                        {hasVerdict
+                            ? `판정: ${isFake ? 'FAKE (조작 의심)' : 'REAL (정상)'}`
+                            : '분석 결과를 가져오는 중...'}
+                    </Text>
+                )}
 
                 {/* 분석 요약 카드 */}
                 <View style={styles.anomalySection}>
-                    <Text style={styles.anomalySubTitle}>{analysisResult.summary}</Text>
-                    {analysisResult.details.map((text, i) => (
-                        <Text key={i} style={[styles.anomalyText, { marginBottom: 12 }]}>{text}</Text>
-                    ))}
-                    <Text style={styles.limitTitle}>{analysisResult.warning}</Text>
+                    <Text style={styles.anomalySubTitle}>
+                        {hasVerdict
+                            ? isFake
+                                ? '이 영상에서 조작 의심 징후가 발견되었습니다.'
+                                : '이 영상에서 조작 징후가 발견되지 않았습니다.'
+                            : '분석이 완료되지 않았습니다.'}
+                    </Text>
+                    {separatedMedia.video_path ? (
+                        <Text style={styles.anomalyText}>영상 파일이 정상적으로 처리되었습니다.</Text>
+                    ) : null}
+                    {separatedMedia.audio_path ? (
+                        <Text style={styles.anomalyText}>음성 파일이 정상적으로 분리되었습니다.</Text>
+                    ) : null}
+                    {separatedMedia.error ? (
+                        <Text style={styles.limitTitle}>! {separatedMedia.error}</Text>
+                    ) : null}
                 </View>
 
                 {/* 상세 보고서 버튼 */}

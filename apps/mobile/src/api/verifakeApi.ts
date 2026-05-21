@@ -15,10 +15,26 @@ export interface MediaTaskResult {
     task_id: string;
     status: MediaTaskStatus;
     verdict: string | null;
+    deepfakeScore?: number | null;
     video_path?: string | null;
     audio_path?: string | null;
     error?: string | null;
     timestamp: string;
+}
+
+export interface HistoryItem {
+    id: string;
+    task_id: string;
+    title: string;
+    status: string;
+    score: number | null;
+    date: string;
+    thumb?: string | null;
+}
+
+export async function getHistory(): Promise<HistoryItem[]> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/history`);
+    return parseJsonResponse<HistoryItem[]>(response);
 }
 
 class ApiError extends Error {
