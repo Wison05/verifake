@@ -172,17 +172,40 @@ def preprocess_video_stage1(req: VideoStage1PreprocessRequest):
 
 @router.post("/video-stage1/explain")
 def explain_video_stage1(req: VideoStage1ExplainRequest):
+    """LLM 설명 생성 API.
+
+    result.json 기반으로 LLM 설명을 생성하고 프론트에서 바로 사용할 수 있는
+    구조로 변환해 반환합니다. 생성된 설명은 video_result.json 에 저장됩니다.
+
+    프론트 ResultDetailScreen 에서 호출하는 응답 스키마:
+        - job_id: str
+        - explain_status: "success" | "error"
+        - result: {
+            status: "FAKE" | "REAL",
+            score: float,          # 0.0 ~ 100.0
+            maxScore: float,
+            llmSummary: str | None,
+            llmDetail: str | None,
+            llmReason: str | None, # detail 우선, 없으면 summary
+            thumbnailUrl: str | None,
+            thumbnailPath: str | None,
+            videoDetection: str,
+            audioDetection: str,
+            segments: list[{startSec, endSec, score, reason, framePath}],
+            quality: {faceDetectRatio, faceVisibilityRatio, blurScore, darkFrameRatio}
+          }
+    """
+    import json as _json
+
     video_result_json_path = Path(req.video_result_json)
     audio_result_json_path = Path(req.audio_result_json)
 
-    # 설명 생성 대상 video_result.json 파일 존재 여부 확인
     if not video_result_json_path.exists() or not video_result_json_path.is_file():
         raise HTTPException(
             status_code=400,
             detail="video_result.json 파일이 존재하지 않습니다.",
         )
 
-    # 설명 생성 대상 audio_result.json 파일 존재 여부 확인
     if not audio_result_json_path.exists() or not audio_result_json_path.is_file():
         raise HTTPException(
             status_code=400,
@@ -190,14 +213,28 @@ def explain_video_stage1(req: VideoStage1ExplainRequest):
         )
 
     try:
-        # 1) video/audio 결과를 함께 프롬프트에 넣어 LLM 설명을 생성하고
-        # 2) 생성 결과는 video_result.json에 저장
+        # 1) video/audio 결과를 함께 프롬프트에 넣어 LLM 설명 생성
+        #    생성 결과는 run_video_stage1_result_explainer_job 내부에서
+        #    video_result.json 의 llm_explanations 필드에 저장됨
         result = run_video_stage1_result_explainer_job(
             video_result_json_path,
             audio_result_json_path,
         )
-        # 2) 프론트 화면에서 바로 쓰기 좋은 구조로 한 번 더 변환
+
+        # 2) 프론트 화면에서 바로 쓰기 좋은 구조로 변환
         frontend_result = _build_frontend_result(result)
+
+        # 3) 업데이트된 result 를 video_result.json 에 다시 저장
+        #    (llm_explanations 필드가 추가된 버전을 디스크에 보존)
+        try:
+            video_result_json_path.write_text(
+                _json.dumps(result, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except OSError as write_exc:
+            # 저장 실패는 응답 자체를 막지 않음 — 로그만 남기고 계속
+            print(f"[explain] result.json write failed: {write_exc}")
+
     except (ValueError, JSONDecodeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except HTTPException:
@@ -212,5 +249,6 @@ def explain_video_stage1(req: VideoStage1ExplainRequest):
         "video_result_json": video_result_json_path.as_posix(),
         "audio_result_json": audio_result_json_path.as_posix(),
         "llm_explanations": result.get("llm_explanations"),
+        # FE 담당자가 ResultDetailScreen 에서 직접 소비하는 필드
         "result": frontend_result,
     }

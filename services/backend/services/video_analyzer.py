@@ -9,6 +9,25 @@ from pathlib import Path
 
 from services.backend.tasks import get_video_detect_job, update_video_detect_job
 
+# result.json에서 verdict / deepfake_score 를 파싱하는 공통 유틸
+def parse_result_json(result_path: Path) -> tuple[str, float]:
+    """result.json을 파싱해 (verdict, deepfake_score) 반환.
+
+    Args:
+        result_path: video stage1 result.json 파일 경로
+
+    Returns:
+        verdict: "FAKE" | "REAL"
+        deepfake_score: 0.0 ~ 100.0 범위 퍼센트 점수
+    """
+    raw = json.loads(result_path.read_text(encoding="utf-8"))
+    detection = raw.get("detection") or {}
+    video_score = detection.get("video_score") or {}
+    raw_score = video_score.get("final_fake_score", 0.0)
+    score = round(max(0.0, min(1.0, float(raw_score))) * 100.0, 1)
+    verdict = "FAKE" if score >= 50.0 else "REAL"
+    return verdict, score
+
 
 VIDEO_DETECT_TIMEOUT_SEC = 30 * 60
 DETECTION_FILENAME = "detection.json"
