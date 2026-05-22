@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from './AnalysisScreen.styles';
 import { ClipboardDocumentCheckIcon } from 'react-native-heroicons/outline';
 import { BottomNavigation } from '../components/BottomNavigaton';
+import {
+    uploadVideoForSeparation,
+    collectInstagramVideo,
+    getMediaTaskStatus,
+} from '../api/verifakeApi';
 
 type StepStatus = 'done' | 'loading' | 'wait';
 
@@ -30,32 +35,78 @@ function getStepStatus(stepNumber: number, activeStep: number): StepStatus {
     return 'wait';
 }
 
+const MAX_POLL_ATTEMPTS = 120;
+const POLL_INTERVAL_MS = 2000;
+
 export const AnalysisScreen = ({ navigation, route }: any) => {
     const [activeStep, setActiveStep] = useState(1);
-    const { thumbnailUri } = route.params || {};
+    const { thumbnailUri, videoUri, url } = route.params || {};
     const { title, subTitle } = getScreenText(activeStep);
 
     useEffect(() => {
         let isMounted = true;
 
-        // TODO: 백엔드 연결 후 실제 API 호출로 교체
-        async function runMockAnalysis() {
-            for (let step = 1; step <= 4; step++) {
+        async function runAnalysis() {
+            try {
+                // Step 1: 영상 업로드
+                setActiveStep(1);
+                let taskId: string;
+
+                if (videoUri) {
+                    const res = await uploadVideoForSeparation(videoUri);
+                    taskId = res.task_id;
+                } else if (url) {
+                    const res = await collectInstagramVideo(url);
+                    taskId = res.task_id;
+                } else {
+                    Alert.alert('오류', '분석할 영상이 없습니다.');
+                    navigation.goBack();
+                    return;
+                }
+
+                // Steps 2-4: 상태 폴링
+                for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+                    if (!isMounted) return;
+
+                    const result = await getMediaTaskStatus(taskId);
+
+                    if (result.status === 'PENDING' || result.status === 'DOWNLOADING') {
+                        setActiveStep(2);
+                    } else if (result.status === 'PROCESSING') {
+                        setActiveStep(3);
+                    } else if (result.status === 'DONE') {
+                        setActiveStep(4);
+                        await new Promise((r) => setTimeout(r, 600));
+                        if (isMounted) {
+                            navigation.navigate('Result', { thumbnailUri, separatedMedia: result });
+                        }
+                        return;
+                    } else if (result.status === 'FAILED') {
+                        Alert.alert('분석 실패', result.error ?? '분석에 실패했습니다.');
+                        navigation.goBack();
+                        return;
+                    }
+
+                    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+                }
+
+                if (isMounted) {
+                    Alert.alert('시간 초과', '분석 결과를 기다리는 시간이 초과되었습니다.');
+                    navigation.goBack();
+                }
+            } catch (e: any) {
                 if (!isMounted) return;
-                setActiveStep(step);
-                await new Promise((resolve) => setTimeout(resolve, 750));
-            }
-            if (isMounted) {
-                navigation.navigate('Result', { thumbnailUri });
+                Alert.alert('오류', e.message ?? '알 수 없는 오류가 발생했습니다.');
+                navigation.goBack();
             }
         }
 
-        runMockAnalysis();
+        runAnalysis();
 
         return () => {
             isMounted = false;
         };
-    }, [navigation, thumbnailUri]);
+    }, []);
 
     return (
         <SafeAreaView style={styles.container}>
