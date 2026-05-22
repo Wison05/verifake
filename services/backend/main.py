@@ -10,7 +10,7 @@ if not hasattr(PIL.Image, "ANTIALIAS"):
     PIL.Image.ANTIALIAS = PIL.Image.LANCZOS
 
 from fastapi import FastAPI
-from services.backend.routers import video, instagram, audio, user, media
+from services.backend.routers import video, instagram, audio, user, media, history
 from services.backend.database import engine
 from services.backend import models
 
@@ -34,6 +34,8 @@ def read_root():
 
 app.include_router(video.router, prefix="/api/v1")
 app.include_router(instagram.router, prefix="/api/v1")
+app.include_router(history.router, prefix="/api/v1")  # [+ 추가]
+
 app.add_api_route(
     "/media/video-stage1/explain",
     media.explain_video_stage1,
