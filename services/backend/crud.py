@@ -25,3 +25,20 @@ def get_task_by_id(db: Session, task_id: str) -> models.VideoMetadata | None:
         .filter(models.VideoMetadata.task_id == task_id)
         .first()
     )
+
+def update_task_analysis(
+    db: Session, 
+    task_id: str, 
+    verdict: str, 
+    deepfake_score: float, 
+    status: str = "DONE"
+) -> models.VideoMetadata | None:
+    """분석 완료 시 판정 결과 및 스코어를 저장합니다."""
+    task = get_task_by_id(db, task_id)
+    if task:
+        task.verdict = verdict
+        task.deepfake_score = deepfake_score
+        task.status = status
+        db.commit()
+        db.refresh(task)
+    return task
