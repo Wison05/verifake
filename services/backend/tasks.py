@@ -44,6 +44,10 @@ def _now() -> str:
     return datetime.now().isoformat()
 
 
+# 하위 호환: create_video_detect_job 에서 _timestamp() 로 호출하는 코드와 맞춤
+_timestamp = _now
+
+
 def create_upload_task(task_id: str) -> UploadTask:
     task: UploadTask = {
         "task_id": task_id,
