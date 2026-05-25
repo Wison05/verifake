@@ -69,3 +69,12 @@ def save_and_split(task_id: str, filename: str, content: bytes):
     _ = dest_path.write_bytes(content)
     video_path, audio_path = separate_streams(dest_path, task_id)
     return str(dest_dir), video_path, audio_path
+
+
+def extract_thumbnail(video_path: Path, task_id: str) -> str:
+    thumb_path = VIDEO_DIR / f"{task_id}_thumb.jpg"
+    _run_ffmpeg_command([
+        "ffmpeg", "-y", "-i", str(video_path),
+        "-ss", "00:00:01", "-vframes", "1", str(thumb_path)
+    ], "썸네일 추출")
+    return str(thumb_path)
