@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import DateTime, Integer, String, Text, Float
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -34,7 +34,9 @@ class VideoMetadata(Base):
     # 분석 결과
     phash_value: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="PENDING")
-
+    # 신규 분석 결과 필드 추가 (nullable=True)
+    verdict: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    deepfake_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, server_default=func.now())
 
     def __repr__(self) -> str:

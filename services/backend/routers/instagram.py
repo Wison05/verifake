@@ -245,5 +245,7 @@ async def get_status(task_id: str, db: Session = Depends(get_db)) -> dict:
         "video_path": task.storage_path,
         "audio_path": task.audio_path,
         "phash_value": task.phash_value,
+        "verdict": task.verdict,                                                 # [+ 추가]
+        "deepfake_score": task.deepfake_score,                                   # [+ 추가]
         "created_at": task.created_at.isoformat() if task.created_at else None,
     }

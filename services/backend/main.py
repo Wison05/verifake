@@ -14,7 +14,7 @@ static_ffmpeg.add_paths()
 if not hasattr(PIL.Image, "ANTIALIAS"):
     PIL.Image.ANTIALIAS = PIL.Image.LANCZOS
 
-from services.backend.routers import audio, instagram, media, user, video
+from services.backend.routers import video, instagram, audio, user, media, history
 from services.backend.database import engine
 from services.backend import models
 
@@ -123,6 +123,15 @@ app.include_router(audio.router, prefix="/api/v1/audio", tags=["Audio"])
 # 사용자 관리
 app.include_router(user.router, prefix="/api/v1", tags=["User"])
 
+app.include_router(history.router, prefix="/api/v1")  # [+ 추가]
+
+app.add_api_route(
+    "/media/video-stage1/explain",
+    media.explain_video_stage1,
+    methods=["POST"],
+    summary="영상/음성 result.json 기반 LLM 설명 생성",
+    tags=["Media"],
+)
 
 if __name__ == "__main__":
     import uvicorn
