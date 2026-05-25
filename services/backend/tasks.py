@@ -129,3 +129,65 @@ def update_video_detect_job(task_id: str, **fields: Any) -> dict[str, Any]:
     job = video_detect_jobs_db[task_id]
     job.update(fields)
     return job
+
+
+def start_audio_job(task_id: str, stage: str, audio_path: str, artifacts_dir: str, result_path: str) -> AudioJob:
+    job = _audio_jobs.get(task_id)
+    if job is None:
+        raise KeyError(f"audio job not found: {task_id}")
+    job.update({
+        "status": "ANALYZING",
+        "stage": stage,
+        "audio_path": audio_path,
+        "artifacts_dir": artifacts_dir,
+        "result_path": result_path,
+        "started_at": _now(),
+    })
+    return job
+
+
+def fail_audio_job(task_id: str, stage: str, error: str, stdout: str = "", stderr: str = "", returncode: int | None = None) -> AudioJob:
+    job = _audio_jobs.get(task_id)
+    if job is None:
+        raise KeyError(f"audio job not found: {task_id}")
+    job.update({
+        "status": "FAILED",
+        "stage": stage,
+        "error": error,
+        "stdout": stdout,
+        "stderr": stderr,
+        "returncode": returncode,
+        "finished_at": _now(),
+    })
+    return job
+
+
+def succeed_audio_job(task_id: str, stage: str, result: Any, stdout: str = "", stderr: str = "", returncode: int | None = None) -> AudioJob:
+    job = _audio_jobs.get(task_id)
+    if job is None:
+        raise KeyError(f"audio job not found: {task_id}")
+    job.update({
+        "status": "SUCCEEDED",
+        "stage": stage,
+        "result": result,
+        "stdout": stdout,
+        "stderr": stderr,
+        "returncode": returncode,
+        "finished_at": _now(),
+    })
+    return job
+
+
+def timeout_audio_job(task_id: str, stage: str, timeout_sec: int, stdout: str = "", stderr: str = "") -> AudioJob:
+    job = _audio_jobs.get(task_id)
+    if job is None:
+        raise KeyError(f"audio job not found: {task_id}")
+    job.update({
+        "status": "TIMED_OUT",
+        "stage": stage,
+        "error": f"audio_stage1 subprocess timeout after {timeout_sec} seconds",
+        "stdout": stdout,
+        "stderr": stderr,
+        "finished_at": _now(),
+    })
+    return job

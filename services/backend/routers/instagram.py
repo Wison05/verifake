@@ -90,11 +90,8 @@ def _run_video_pipeline(task_id: str, video_path: str) -> None:
         if result_path.exists():
             try:
                 verdict, score = parse_result_json(result_path)
-                # B1이 DB 마이그레이션 완료 전까지 컬럼이 없을 수 있으므로 방어 처리
-                if hasattr(task, "verdict"):
-                    task.verdict = verdict
-                if hasattr(task, "deepfake_score"):
-                    task.deepfake_score = score
+                task.verdict = verdict
+                task.deepfake_score = score
                 task.status = "COMPLETED"
             except Exception as exc:
                 print(f"[pipeline] result parse failed for {task_id}: {exc}")
