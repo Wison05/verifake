@@ -90,6 +90,11 @@ class VideoScore(BaseModel):
     avg_fake_score: float = Field(..., ge=0.0, le=1.0)
     final_fake_score: float = Field(..., ge=0.0, le=1.0)
     aggregation_method: str
+    score_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+    analyzed_frame_count: int = Field(default=0, ge=0)
+    suspicious_frame_count: int = Field(default=0, ge=0)
+    suspicious_frame_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
+    score_std: float = Field(default=0.0, ge=0.0)
 
 
 class DetectionOutput(BaseModel):

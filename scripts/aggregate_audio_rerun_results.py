@@ -4,9 +4,10 @@ import argparse
 import csv
 import json
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 from services.ai.evaluation.metrics import write_metrics
+from services.ai.evaluation.predictions import classify_fusion_triage, fuse_fake_scores
 
 
 DATASET_TYPES = [
@@ -47,8 +48,15 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
-def _prediction_row_from_combined(row: dict[str, Any], *, modality: str, label_key: str, score: float) -> dict[str, Any]:
-    return {
+def _prediction_row_from_combined(
+    row: dict[str, Any],
+    *,
+    modality: str,
+    label_key: str,
+    score: float,
+    extra: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    prediction = {
         "sample_id": row["sample_id"],
         "dataset_name": row["dataset_name"],
         "category": row["category"],
@@ -62,6 +70,9 @@ def _prediction_row_from_combined(row: dict[str, Any], *, modality: str, label_k
         "label": int(row[label_key]),
         "fake_score": float(score),
     }
+    if extra is not None:
+        prediction.update(dict(extra))
+    return prediction
 
 
 def _merge_shard(run_dir: Path, *, shard_index: int, num_shards: int) -> tuple[
@@ -88,18 +99,26 @@ def _merge_shard(run_dir: Path, *, shard_index: int, num_shards: int) -> tuple[
         merged["video_fake_score"] = float(video_score) if video_score is not None else None
         merged["audio_fake_score"] = float(audio_score) if audio_score is not None else None
         if video_score is not None and audio_score is not None:
-            fusion_score = (float(video_score) + float(audio_score)) / 2.0
+            video_score = float(video_score)
+            audio_score = float(audio_score)
+            fusion_score = fuse_fake_scores(video_score, audio_score)
+            fusion_triage_label = classify_fusion_triage(video_score, audio_score)
             merged["fusion_fake_score"] = fusion_score
+            merged["fusion_triage_label"] = fusion_triage_label
             fusion_rows.append(
                 _prediction_row_from_combined(
                     merged,
                     modality="fusion",
                     label_key="fusion_label",
                     score=fusion_score,
+                    extra={
+                        "triage_label": fusion_triage_label,
+                    },
                 )
             )
         else:
             merged["fusion_fake_score"] = None
+            merged["fusion_triage_label"] = None
         merged_combined.append(merged)
 
     _write_jsonl(run_dir / f"predictions_fusion{suffix}.jsonl", fusion_rows)
@@ -108,7 +127,14 @@ def _merge_shard(run_dir: Path, *, shard_index: int, num_shards: int) -> tuple[
     return video_rows, audio_rows, fusion_rows, merged_combined
 
 
-def aggregate(run_dir: Path, results_root: Path, *, num_shards: int) -> None:
+def aggregate(
+    run_dir: Path,
+    results_root: Path,
+    *,
+    num_shards: int,
+    thresholds: dict[str, float] | None = None,
+    overfit_thresholds: bool = False,
+) -> None:
     all_video: list[dict[str, Any]] = []
     all_audio: list[dict[str, Any]] = []
     all_fusion: list[dict[str, Any]] = []
@@ -137,7 +163,9 @@ def aggregate(run_dir: Path, results_root: Path, *, num_shards: int) -> None:
             "audio": all_audio,
             "fusion": all_fusion,
         },
+        thresholds=thresholds,
         expected_dataset_names=DATASET_TYPES,
+        overfit_thresholds=overfit_thresholds,
     )
     for dataset_type, metrics_path in metric_paths.items():
         export_path = results_root / dataset_type / f"{dataset_type}.json"
@@ -150,12 +178,26 @@ def main() -> int:
     parser.add_argument("--run-dir", required=True)
     parser.add_argument("--results-root", required=True)
     parser.add_argument("--num-shards", type=int, default=4)
+    parser.add_argument("--video-threshold", type=float, default=0.5)
+    parser.add_argument("--audio-threshold", type=float, default=0.5)
+    parser.add_argument("--fusion-threshold", type=float, default=0.5)
+    parser.add_argument(
+        "--overfit-thresholds",
+        action="store_true",
+        help="Opt in to in-sample threshold calibration for reported metrics",
+    )
     args = parser.parse_args()
 
     aggregate(
         Path(args.run_dir).expanduser().resolve(),
         Path(args.results_root).expanduser().resolve(),
         num_shards=args.num_shards,
+        thresholds={
+            "video": args.video_threshold,
+            "audio": args.audio_threshold,
+            "fusion": args.fusion_threshold,
+        },
+        overfit_thresholds=args.overfit_thresholds,
     )
     return 0
 

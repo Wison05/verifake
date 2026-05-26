@@ -149,6 +149,7 @@ def run_dataset_evaluation(
     results_root: str | Path | None = None,
     shard_index: int | None = None,
     num_shards: int | None = None,
+    overfit_thresholds: bool = False,
 ) -> dict[str, Any]:
     resolved_run_dir = _resolve_run_dir(config, run_dir)
     resolved_run_dir.mkdir(parents=True, exist_ok=run_dir is not None)
@@ -216,6 +217,7 @@ def run_dataset_evaluation(
         run_dir=resolved_run_dir,
         predictions_by_modality=predictions_by_modality,
         expected_dataset_names=expected_dataset_names,
+        overfit_thresholds=overfit_thresholds,
     )
     result = {
         "run_dir": str(resolved_run_dir),

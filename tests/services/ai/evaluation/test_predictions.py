@@ -8,6 +8,7 @@ from services.ai.evaluation.manifest import ManifestSample
 from services.ai.evaluation.predictions import (
     PredictionWriter,
     build_prediction_records,
+    classify_fusion_triage,
     extract_audio_fake_score,
     extract_video_fake_score,
     load_existing_sample_ids,
@@ -62,6 +63,23 @@ def test_build_prediction_records_maps_scores_and_fusion_average() -> None:
     assert records.audio["fake_score"] == 0.3
     assert records.fusion["fake_score"] == 0.6
     assert records.fusion["label"] == 1
+    assert records.fusion["triage_label"] == "fake"
+    assert records.combined["fusion_triage_label"] == "fake"
+
+
+def test_fusion_triage_marks_video_audio_conflict_for_review() -> None:
+    records = build_prediction_records(
+        sample(),
+        video_result={"detection": {"video_score": {"final_fake_score": 0.9}}},
+        audio_result={"audio_fake_prob_like": 0.01},
+    )
+
+    assert classify_fusion_triage(0.9, 0.01) == "needs_review"
+    assert classify_fusion_triage(0.4, 0.01) == "needs_review"
+    assert records.fusion is not None
+    assert records.fusion["fake_score"] == 0.455
+    assert records.fusion["triage_label"] == "needs_review"
+    assert records.combined["fusion_triage_label"] == "needs_review"
 
 
 def test_build_prediction_records_excludes_unscored_audio_from_metrics() -> None:
@@ -82,6 +100,7 @@ def test_build_prediction_records_excludes_unscored_audio_from_metrics() -> None
     assert records.combined["audio_fake_score"] is None
     assert records.combined["audio_scored_window_count"] == 0
     assert records.combined["audio_failed_window_count"] == 2
+    assert records.combined["fusion_triage_label"] is None
     assert "numpy" in records.combined["audio_model_error"]
 
 

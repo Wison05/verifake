@@ -117,6 +117,10 @@ def run_video_stage1_detection(preprocessing_json_path: str) -> dict[str, Any]:
         frame_scores,
         segment_scores,
         topk_frame_count=config["video_score"]["topk_frame_count"],
+        aggregation_method=config["video_score"].get(
+            "aggregation_method", "topk_mean"
+        ),
+        score_threshold=config["segment_merge"]["score_threshold"],
     )
 
     analyzed_frame_count = len({item["frame_index"] for item in face_scores})

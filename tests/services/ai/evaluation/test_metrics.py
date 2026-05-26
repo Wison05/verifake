@@ -12,8 +12,9 @@ def prediction(
     score: float,
     category: str = "A",
     sample_type: str = "FakeVideo-FakeAudio",
+    triage_label: str | None = None,
 ) -> dict[str, object]:
-    return {
+    row: dict[str, object] = {
         "sample_id": sample_id,
         "dataset_name": "FakeAVCeleb",
         "category": category,
@@ -22,6 +23,9 @@ def prediction(
         "label": label,
         "fake_score": score,
     }
+    if triage_label is not None:
+        row["triage_label"] = triage_label
+    return row
 
 
 def test_compute_auc_roc_handles_ties() -> None:
@@ -49,6 +53,7 @@ def test_compute_metrics_counts_accuracy_and_one_class_auc_reason() -> None:
     assert metrics["accuracy"] == 0.5
     assert metrics["auc_roc"] is None
     assert metrics["auc_roc_reason"] == "auc_roc requires both positive and negative labels"
+    assert metrics["mean_fake_score"] == 0.44999999999999996
 
 
 def test_write_metrics_saves_dataset_metrics_and_errors(tmp_path: Path) -> None:
@@ -77,6 +82,119 @@ def test_write_metrics_saves_dataset_metrics_and_errors(tmp_path: Path) -> None:
     assert metrics["results"]["audio"]["auc_roc_reason"] == "no predictions"
     assert '"sample_id": "fp"' in false_positive
     assert '"sample_id": "fn"' in false_negative
+
+
+def test_write_metrics_can_use_modality_specific_thresholds(tmp_path: Path) -> None:
+    paths = write_metrics(
+        run_dir=tmp_path,
+        predictions_by_modality={
+            "video": [
+                prediction("real", 0, 0.55),
+                prediction("fake", 1, 0.65),
+            ],
+            "audio": [
+                prediction("audio-real", 0, 0.55),
+                prediction("audio-fake", 1, 0.65),
+            ],
+        },
+        thresholds={"video": 0.6, "audio": 0.5},
+    )
+
+    metrics = json.loads(paths["FakeVideo-FakeAudio"].read_text(encoding="utf-8"))
+
+    assert metrics["results"]["video"]["accuracy"] == 1.0
+    assert metrics["results"]["audio"]["accuracy"] == 0.5
+
+
+def test_write_metrics_can_overfit_thresholds_with_calibration_metadata(tmp_path: Path) -> None:
+    paths = write_metrics(
+        run_dir=tmp_path,
+        predictions_by_modality={
+            "video": [
+                prediction("real", 0, 0.55),
+                prediction("fake", 1, 0.65),
+            ],
+        },
+        overfit_thresholds=True,
+    )
+
+    metrics = json.loads(paths["FakeVideo-FakeAudio"].read_text(encoding="utf-8"))
+
+    assert metrics["results"]["video"]["accuracy"] == 1.0
+    assert metrics["calibration"]["video"] == {
+        "mode": "overfit_in_sample",
+        "threshold": 0.65,
+        "accuracy": 1.0,
+        "correct_count": 2,
+        "total_count": 2,
+    }
+    assert "calibration" not in write_metrics(
+        run_dir=tmp_path / "normal",
+        predictions_by_modality={
+            "video": [
+                prediction("real", 0, 0.55),
+                prediction("fake", 1, 0.65),
+            ],
+        },
+    )["FakeVideo-FakeAudio"].read_text(encoding="utf-8")
+
+
+def test_write_metrics_overfit_thresholds_are_per_dataset_category(tmp_path: Path) -> None:
+    paths = write_metrics(
+        run_dir=tmp_path,
+        predictions_by_modality={
+            "video": [
+                prediction("a-real", 0, 0.55, sample_type="FakeVideo-FakeAudio"),
+                prediction("a-fake", 1, 0.65, sample_type="FakeVideo-FakeAudio"),
+                prediction("b-real", 0, 0.35, sample_type="RealVideo-FakeAudio"),
+                prediction("b-fake", 1, 0.45, sample_type="RealVideo-FakeAudio"),
+            ],
+        },
+        overfit_thresholds=True,
+    )
+
+    fake_video_fake_audio = json.loads(paths["FakeVideo-FakeAudio"].read_text(encoding="utf-8"))
+    real_video_fake_audio = json.loads(paths["RealVideo-FakeAudio"].read_text(encoding="utf-8"))
+
+    assert fake_video_fake_audio["calibration"]["video"]["threshold"] == 0.65
+    assert real_video_fake_audio["calibration"]["video"]["threshold"] == 0.45
+    assert fake_video_fake_audio["results"]["video"]["accuracy"] == 1.0
+    assert real_video_fake_audio["results"]["video"]["accuracy"] == 1.0
+
+
+def test_compute_metrics_adds_compact_review_summary_without_replacing_accuracy() -> None:
+    metrics = compute_metrics(
+        [
+            prediction("review-real", 0, 0.9, triage_label="needs_review"),
+            prediction("auto-fake", 1, 0.8, triage_label="fake"),
+            prediction("auto-missed-fake", 1, 0.4, triage_label="real"),
+            prediction("auto-real", 0, 0.2, triage_label="real"),
+        ]
+    )
+
+    assert metrics["accuracy"] == 0.5
+    assert metrics["review_summary"] == "needs_review=1/4, auto_accuracy=0.6667"
+
+
+def test_write_metrics_adds_compact_review_summary_only(tmp_path: Path) -> None:
+    paths = write_metrics(
+        run_dir=tmp_path,
+        predictions_by_modality={
+            "fusion": [
+                prediction(
+                    "review-real",
+                    0,
+                    0.9,
+                    triage_label="needs_review",
+                )
+            ]
+        },
+    )
+
+    metrics = json.loads(paths["FakeVideo-FakeAudio"].read_text(encoding="utf-8"))
+
+    assert metrics["results"]["fusion"]["review_summary"] == "needs_review=1/1, auto_accuracy=null"
+    assert not (tmp_path / "errors" / "FakeVideo-FakeAudio_needs_review.jsonl").exists()
 
 
 def test_write_metrics_creates_one_file_per_type_when_category_differs(tmp_path: Path) -> None:
@@ -118,6 +236,7 @@ def test_write_metrics_emits_expected_types_with_zero_counts(tmp_path: Path) -> 
         "correct_count": 0,
         "accuracy": None,
         "auc_roc": None,
+        "mean_fake_score": None,
         "auc_roc_reason": "no predictions",
     }
     assert missing_metrics["results"]["audio"]["total_count"] == 0

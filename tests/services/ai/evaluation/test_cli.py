@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from scripts import aggregate_audio_rerun_results
 from services.ai.evaluation import dataset_eval
 from services.ai.evaluation.config import EvalConfig
 
@@ -35,11 +36,17 @@ def test_cli_main_loads_config_runs_evaluation_and_prints_json(
         run_dir: Path | None = None,
         sample_type: str | None = None,
         results_root: Path | None = None,
+        shard_index: int | None = None,
+        num_shards: int | None = None,
+        overfit_thresholds: bool = False,
     ) -> dict[str, object]:
         captured["limit"] = limit
         captured["run_dir"] = run_dir
         captured["sample_type"] = sample_type
         captured["results_root"] = results_root
+        captured["shard_index"] = shard_index
+        captured["num_shards"] = num_shards
+        captured["overfit_thresholds"] = overfit_thresholds
         assert run_dir is not None
         return {
             "run_dir": str(run_dir),
@@ -65,6 +72,7 @@ def test_cli_main_loads_config_runs_evaluation_and_prints_json(
             "RealVideo-RealAudio",
             "--results-root",
             str(output_root / "final"),
+            "--overfit-thresholds",
         ]
     )
 
@@ -77,5 +85,39 @@ def test_cli_main_loads_config_runs_evaluation_and_prints_json(
         "run_dir": run_dir,
         "sample_type": "RealVideo-RealAudio",
         "results_root": output_root / "final",
+        "shard_index": None,
+        "num_shards": None,
+        "overfit_thresholds": True,
     }
     assert printed["run_dir"].endswith("existing-run")
+
+
+def test_audio_rerun_aggregate_passes_overfit_thresholds_to_write_metrics(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_merge_shard(
+        run_dir: Path,
+        *,
+        shard_index: int,
+        num_shards: int,
+    ) -> tuple[list[dict[str, object]], list[dict[str, object]], list[dict[str, object]], list[dict[str, object]]]:
+        return [], [], [], []
+
+    def fake_write_metrics(**kwargs: object) -> dict[str, Path]:
+        captured.update(kwargs)
+        return {}
+
+    monkeypatch.setattr(aggregate_audio_rerun_results, "_merge_shard", fake_merge_shard)
+    monkeypatch.setattr(aggregate_audio_rerun_results, "write_metrics", fake_write_metrics)
+
+    aggregate_audio_rerun_results.aggregate(
+        tmp_path / "run",
+        tmp_path / "results",
+        num_shards=1,
+        overfit_thresholds=True,
+    )
+
+    assert captured["overfit_thresholds"] is True

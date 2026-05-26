@@ -18,6 +18,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--results-root", default=None, help="Optional final metrics export root")
     parser.add_argument("--shard-index", type=int, default=None, help="Zero-based shard index")
     parser.add_argument("--num-shards", type=int, default=None, help="Total shard count")
+    parser.add_argument(
+        "--overfit-thresholds",
+        action="store_true",
+        help="Opt in to in-sample threshold calibration for reported metrics",
+    )
     return parser
 
 
@@ -36,6 +41,7 @@ def main(argv: list[str] | None = None) -> int:
         results_root=results_root,
         shard_index=args.shard_index,
         num_shards=args.num_shards,
+        overfit_thresholds=args.overfit_thresholds,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0

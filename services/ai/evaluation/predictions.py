@@ -10,6 +10,11 @@ from typing import Any, Iterable, Mapping
 from services.ai.evaluation.manifest import ManifestSample
 
 
+DEFAULT_FAKE_THRESHOLD = 0.5
+DEFAULT_VIDEO_REVIEW_THRESHOLD = 0.3
+DEFAULT_AUDIO_REAL_THRESHOLD = 0.1
+
+
 @dataclass(frozen=True)
 class PredictionPaths:
     video_jsonl: Path
@@ -79,6 +84,29 @@ def extract_audio_fake_score(audio_result: Mapping[str, Any] | None) -> float | 
     return _float_or_none(audio_result.get("audio_fake_prob_like"))
 
 
+def fuse_fake_scores(video_score: float, audio_score: float) -> float:
+    return (float(video_score) + float(audio_score)) / 2.0
+
+
+def classify_fusion_triage(
+    video_score: float,
+    audio_score: float,
+    *,
+    fake_threshold: float = DEFAULT_FAKE_THRESHOLD,
+    video_review_threshold: float = DEFAULT_VIDEO_REVIEW_THRESHOLD,
+    audio_real_threshold: float = DEFAULT_AUDIO_REAL_THRESHOLD,
+) -> str:
+    video_score = float(video_score)
+    audio_score = float(audio_score)
+    if audio_score >= fake_threshold:
+        return "fake"
+    if video_score >= video_review_threshold and audio_score <= audio_real_threshold:
+        return "needs_review"
+    if video_score >= fake_threshold:
+        return "fake"
+    return "real"
+
+
 def _extract_audio_count(audio_result: Mapping[str, Any] | None, key: str) -> int | None:
     if audio_result is None:
         return None
@@ -141,13 +169,17 @@ def build_prediction_records(
         else None
     )
     fusion_score = None
+    fusion_triage_label = None
     if video_score is not None and audio_score is not None:
-        fusion_score = (video_score + audio_score) / 2.0
+        fusion_score = fuse_fake_scores(video_score, audio_score)
+        fusion_triage_label = classify_fusion_triage(video_score, audio_score)
     fusion = (
         _base_record(sample, "fusion", sample.labels["fusion_label"], fusion_score)
         if fusion_score is not None
         else None
     )
+    if fusion is not None and video_score is not None and audio_score is not None:
+        fusion["triage_label"] = fusion_triage_label
     combined = {
         "sample_id": sample.sample_id,
         "dataset_name": sample.dataset_name,
@@ -164,6 +196,7 @@ def build_prediction_records(
         "video_fake_score": video_score,
         "audio_fake_score": audio_score,
         "fusion_fake_score": fusion_score,
+        "fusion_triage_label": fusion_triage_label,
         "audio_scored_window_count": audio_scored_window_count,
         "audio_failed_window_count": audio_failed_window_count,
         "audio_skipped_window_count": audio_skipped_window_count,
