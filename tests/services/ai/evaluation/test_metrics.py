@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from services.ai.evaluation.metrics import compute_auc_roc, compute_metrics, write_metrics
 
 
@@ -123,6 +125,9 @@ def test_write_metrics_can_overfit_thresholds_with_calibration_metadata(tmp_path
     assert metrics["results"]["video"]["accuracy"] == 1.0
     assert metrics["calibration"]["video"] == {
         "mode": "overfit_in_sample",
+        "reporting_scope": "diagnostic_only",
+        "benchmark_reporting_valid": False,
+        "warning": "In-sample threshold calibration is diagnostic only and is not valid for benchmark reporting.",
         "threshold": 0.65,
         "accuracy": 1.0,
         "correct_count": 2,
@@ -241,3 +246,53 @@ def test_write_metrics_emits_expected_types_with_zero_counts(tmp_path: Path) -> 
     }
     assert missing_metrics["results"]["audio"]["total_count"] == 0
     assert missing_metrics["results"]["fusion"]["total_count"] == 0
+
+
+def test_overfit_thresholds_are_marked_diagnostic_and_keep_reference_tie_break(tmp_path: Path) -> None:
+    paths = write_metrics(
+        run_dir=tmp_path,
+        predictions_by_modality={
+            "video": [
+                prediction("real", 0, 0.2),
+                prediction("fake", 1, 0.9),
+            ],
+        },
+        overfit_thresholds=True,
+    )
+
+    metrics = json.loads(paths["FakeVideo-FakeAudio"].read_text(encoding="utf-8"))
+    calibration = metrics["calibration"]["video"]
+
+    assert calibration["threshold"] == 0.5
+    assert calibration["accuracy"] == 1.0
+    assert calibration["reporting_scope"] == "diagnostic_only"
+    assert calibration["benchmark_reporting_valid"] is False
+    assert "not valid for benchmark reporting" in calibration["warning"]
+
+
+def test_overfit_thresholds_keep_inclusive_score_boundary(tmp_path: Path) -> None:
+    paths = write_metrics(
+        run_dir=tmp_path,
+        predictions_by_modality={
+            "video": [
+                prediction("real", 0, 0.49),
+                prediction("fake-at-threshold", 1, 0.5),
+                prediction("fake-above-threshold", 1, 0.8),
+            ],
+        },
+        overfit_thresholds=True,
+    )
+
+    metrics = json.loads(paths["FakeVideo-FakeAudio"].read_text(encoding="utf-8"))
+
+    assert metrics["calibration"]["video"]["threshold"] == 0.5
+    assert metrics["results"]["video"]["accuracy"] == 1.0
+
+
+def test_invalid_thresholds_are_rejected(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="threshold must be between"):
+        write_metrics(
+            run_dir=tmp_path,
+            predictions_by_modality={"video": [prediction("sample", 1, 0.9)]},
+            thresholds={"video": 1.1},
+        )

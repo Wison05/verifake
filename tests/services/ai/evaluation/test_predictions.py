@@ -124,3 +124,12 @@ def test_prediction_writer_writes_jsonl_csv_failures_and_reads_resume_ids(tmp_pa
     assert csv_rows[0]["video_fake_score"] == "0.9"
     assert failure_rows[0]["error"] == "boom"
     assert load_existing_sample_ids([writer.paths.video_jsonl]) == {"sample-1"}
+
+
+def test_fusion_triage_covers_priority_and_threshold_boundaries() -> None:
+    assert classify_fusion_triage(0.9, 0.6) == "fake"
+    assert classify_fusion_triage(0.9, 0.2) == "fake"
+    assert classify_fusion_triage(0.2, 0.01) == "real"
+    assert classify_fusion_triage(0.3, 0.1) == "needs_review"
+    assert classify_fusion_triage(0.29, 0.1) == "real"
+    assert classify_fusion_triage(0.9, 0.11) == "fake"

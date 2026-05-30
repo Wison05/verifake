@@ -7,6 +7,9 @@ from typing import Any, Iterable, Mapping
 
 
 ONE_CLASS_AUC_REASON = "auc_roc requires both positive and negative labels"
+OVERFIT_CALIBRATION_WARNING = (
+    "In-sample threshold calibration is diagnostic only and is not valid for benchmark reporting."
+)
 
 
 def _validate_threshold(threshold: float) -> float:
@@ -132,6 +135,9 @@ def _overfit_threshold_calibration(
 
     return {
         "mode": "overfit_in_sample",
+        "reporting_scope": "diagnostic_only",
+        "benchmark_reporting_valid": False,
+        "warning": OVERFIT_CALIBRATION_WARNING,
         "threshold": best_threshold,
         "accuracy": best_accuracy,
         "correct_count": best_correct_count,

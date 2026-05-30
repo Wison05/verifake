@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
+
+import pytest
 
 from scripts import aggregate_audio_rerun_results
 from services.ai.evaluation import dataset_eval
@@ -121,3 +124,24 @@ def test_audio_rerun_aggregate_passes_overfit_thresholds_to_write_metrics(
     )
 
     assert captured["overfit_thresholds"] is True
+
+
+def test_overfit_threshold_help_marks_diagnostic_only(monkeypatch, capsys) -> None:
+    dataset_help = dataset_eval._build_parser().format_help()
+    assert "diagnostic in-sample threshold calibration" in dataset_help
+    assert "not valid for benchmark reporting" in dataset_help
+    assert "reported metrics" not in dataset_help
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["aggregate_audio_rerun_results.py", "--help"],
+    )
+    with pytest.raises(SystemExit) as exc_info:
+        aggregate_audio_rerun_results.main()
+
+    assert exc_info.value.code == 0
+    aggregate_help = capsys.readouterr().out
+    assert "diagnostic in-sample threshold calibration" in aggregate_help
+    assert "not valid for benchmark reporting" in aggregate_help
+    assert "reported metrics" not in aggregate_help

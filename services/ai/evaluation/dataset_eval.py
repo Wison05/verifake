@@ -21,7 +21,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--overfit-thresholds",
         action="store_true",
-        help="Opt in to in-sample threshold calibration for reported metrics",
+        help="Opt in to diagnostic in-sample threshold calibration; not valid for benchmark reporting",
     )
     return parser
 

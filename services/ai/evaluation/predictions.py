@@ -244,8 +244,6 @@ def load_complete_combined_sample_ids(paths: str | Path | Iterable[str | Path]) 
                     row = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                if row.get("video_fake_score") is None or row.get("audio_fake_score") is None:
-                    continue
                 sample_id = row.get("sample_id")
                 if sample_id:
                     sample_ids.add(str(sample_id))
